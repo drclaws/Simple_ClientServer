@@ -342,11 +342,15 @@ namespace simpleApp
                             case session_status::proceed_send_fail:
                                 msg = std::string("SEND failed");
                                 break;
-                            case session_status::proceed_udp_wrong_header:
+                            case session_status::proceed_wrong_header:
                                 msg = std::string("Received message with wrong header");
                                 break;
                             case session_status::proceed_unknown_fd:
                                 msg = std::string("Unknown fd connected");
+                                break;
+
+                            case session_status::proceed_tcp_wrong_size:
+                                msg = std::string("Receive message has wrong size");
                                 break;
 
                             case session_status::proceed_udp_false_timeout:

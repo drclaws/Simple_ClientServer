@@ -14,11 +14,13 @@
 
 #include <simple_lib/common.h>
 
+#include "message.h"
+
 namespace simpleApp
 {
     TcpSession::TcpSession(int& epollfd) : ClientSession(epollfd, "TCP")
     {
-        //TODO
+        
     }
 
     session_result TcpSession::init(socket_t masterSocket, uint16_t port)
@@ -68,7 +70,36 @@ namespace simpleApp
 
     session_result TcpSession::proceed(struct epoll_event& epoll_event)
     {
-        // TODO
-        return session_result {session_status::proceed_msg_send, 0};
+        uint8_t buffer[MESSAGE_MAX_BUFFER];
+        auto len = recv(this->_socket, buffer, MESSAGE_MAX_BUFFER, 0);
+        if (len == -1)
+            return session_result {session_status::proceed_recv_fail, errno};
+        else if (len == 0)
+        {
+            this->sessionClose();
+            return session_result {session_status::proceed_disconnect};
+        }
+        else if (len <= sizeof(msg_headers))
+        {
+            const msg_headers buff = msg_headers::incorrect_msg;
+            send(this->_socket, &buff, sizeof(buff), 0);
+            return session_result {session_status::proceed_tcp_wrong_size};
+        }
+        
+        if(*reinterpret_cast<msg_headers*>(buffer) != msg_headers::client_msg)
+        {
+            const msg_headers buff = msg_headers::incorrect_msg;
+            send(this->_socket, &buff, sizeof(buff), 0);
+            return session_result {session_status::proceed_wrong_header};
+        }
+        
+        uint8_t buff[MESSAGE_MAX_BUFFER];
+                    
+        auto sendLen = proceedMsg(buffer, len, buff);
+
+        if (send(this->_socket, buff, sendLen, 0) == -1)
+            return session_result {session_status::proceed_send_fail, errno};
+
+        return session_result {session_status::proceed_msg_send};
     }
 }

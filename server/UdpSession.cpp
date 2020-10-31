@@ -16,14 +16,15 @@
 
 #include <unistd.h>
 
-#include <simple_lib/message.h>
 #include <simple_lib/common.h>
+
+#include "message.h"
 
 namespace simpleApp
 {
     UdpSession::UdpSession(int& epollfd) : ClientSession(epollfd, "UDP")
     {
-        // TODO
+        
     }
 
     UdpSession::~UdpSession()
@@ -215,7 +216,7 @@ namespace simpleApp
 
             auto sendMsgError = [this]()
             {
-                const msg_headers header = msg_headers::err_server_msg;
+                const msg_headers header = msg_headers::incorrect_msg;
                 send(this->_socket, &header, sizeof(msg_headers), 0);
             };
 
@@ -234,7 +235,7 @@ namespace simpleApp
                 if (!(static_cast<header_base_type>(header) & static_cast<header_base_type>(msg_headers::sender_client)))
                 {
                     sendMsgError();
-                    return session_result {session_status::proceed_udp_wrong_header};
+                    return session_result {session_status::proceed_wrong_header};
                 }
                 
                 if (len == sizeof(msg_headers))
@@ -259,30 +260,23 @@ namespace simpleApp
 
                     default:
                         sendMsgError();
-                        return session_result {session_status::proceed_udp_wrong_header};
+                        return session_result {session_status::proceed_wrong_header};
                     };
                 }
                 else if (header == msg_headers::client_msg)
                 {
-                    // TODO replace this with required logic
                     uint8_t buff[MESSAGE_MAX_BUFFER];
                     
-                    const char* buff = "DELIVERED";
-                    const msg_headers buffHeader = msg_headers::server_msg;
+                    auto sendLen = proceedMsg(msgBuff, len, buff);
 
-                    this->timerReset();
-
-                    std::memcpy(buff, &buffHeader, sizeof(buffHeader));
-                    std::memcpy(buff + static_cast<ptrdiff_t>(sizeof(buffHeader)), buff, sizeof("DELIVERED"));
-                    
-                    if (send(this->_socket, buff, sizeof(buffHeader) + sizeof("DELIVERED"), 0) == -1)
+                    if (send(this->_socket, buff, sendLen, 0) == -1)
                         return session_result {session_status::proceed_send_fail, errno};
                     return session_result {session_status::proceed_msg_send};
                 }
                 else
                 {
                     sendMsgError();
-                    return session_result {session_status::proceed_udp_wrong_header};
+                    return session_result {session_status::proceed_wrong_header};
                 }
             }
         }

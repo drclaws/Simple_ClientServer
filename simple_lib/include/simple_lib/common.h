@@ -5,12 +5,12 @@
 namespace simpleApp
 {
     const unsigned int WAIT_TIMEOUT_SEC = 15;
-
-    /// Message headers.
-    /// TCP-sessions use only "Data proceeding" group.
+    const size_t MESSAGE_MAX_BUFFER = 1000;
 
     typedef uint8_t header_base_type;
 
+    /// Message headers.
+    /// TCP-sessions use only "Data proceeding" group.
     enum class msg_headers : header_base_type 
     {
         // Header flags
@@ -46,7 +46,7 @@ namespace simpleApp
         // Data proceeding (TCP possible)
         client_msg =            sender_client | message,
         server_msg =            sender_server | message,
-        err_server_msg =        sender_server | message | error     // Error in client message
+        incorrect_msg =        sender_server | message | error     // Error in client message
     };
 
     typedef int socket_t;

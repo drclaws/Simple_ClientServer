@@ -20,9 +20,11 @@ namespace simpleApp
         proceed_recv_fail,
         proceed_send_fail,
         proceed_unknown_fd,
+        proceed_wrong_header,
+
+        proceed_tcp_wrong_size,
 
         proceed_udp_timer_fail,
-        proceed_udp_wrong_header,
         proceed_udp_timeout,
         proceed_udp_false_timeout,
         proceed_udp_client_timeout,
