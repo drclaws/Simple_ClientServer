@@ -231,24 +231,7 @@ namespace simpleApp
                     else
                         return false;
                     
-                    
-                    std::cout << (event.data.fd == masterTcpSocket ? "TCP" : "UDP");
-
-                    auto address = clientSession->getAddress();
-                    
-                    if(address != nullptr)
-                    {
-                        uint32_t addressConverted = ntohl(address->sin_addr.s_addr);
-                        uint16_t portConverted = ntohs(address->sin_port);
-
-                        uint8_t* addressByBytes = reinterpret_cast<uint8_t*>(&addressConverted);
-                        std::cout << "(" << static_cast<int>(addressByBytes[0]) << "." <<
-                            static_cast<int>(addressByBytes[1]) << "." <<
-                            static_cast<int>(addressByBytes[2]) << "." <<
-                            static_cast<int>(addressByBytes[3]) << "). ";
-                    }
-                    else
-                        std::cout << ". ";
+                    std::string msg = clientSession->getName() + ". ";
                     
                     bool toInsert = false;
                     switch (result.status)
@@ -258,34 +241,34 @@ namespace simpleApp
                         slaveSocketsMap.insert(clientSession);
                         break;
                     case session_status::init_socket_setup_fail:
-                        std::cout << "Socket initialization failed";
+                        msg += "Socket initialization failed";
                         break;
-                    case session_status::init_udp_listener_fail:
-                        std::cout << "Message receiving from listener failed";
+                    case session_status::init_listener_fail:
+                        msg += "Message receiving from listener failed";
                         break;
                     case session_status::init_udp_wrong_header:
-                        std::cout << "Header check failed";
+                        msg += "Header check failed";
                         break;
                     case session_status::init_udp_wrong_length:
-                        std::cout << "Message length check failed";
+                        msg += "Message length check failed";
                         break;
                     case session_status::init_udp_timer_fail:
-                        std::cout << "Timeout timer setup failed";
+                        msg += "Timeout timer setup failed";
                         break;
                     default:
-                        std::cout << "Unknown status returned";
+                        msg += "Unknown status returned";
                         break;
                     }
                     
                     if (result.err != 0)
-                        std::cout << " with code " << result.err << std::endl;
-                    else 
-                        std::cout << std::endl;
+                        msg += std::string(" with code ") + std::to_string(result.err);
 
                     if (toInsert)
                         slaveSocketsMap.insert(clientSession);
                     else
                         delete clientSession;
+
+                    std::cout << msg << std::endl;
 
                     return true;
                 };
@@ -298,11 +281,13 @@ namespace simpleApp
                         if (events[i].data.fd == this->stopObject)
                         {
                             eventfd_t decrement = 1;
-                            std::cout << "Stop event happened" << std::endl;
+                            
+                            std::string msg = "Stop event happened";
+
                             if (eventfd_read(this->stopObject, static_cast<eventfd_t *>(&decrement)) == -1)
                             {
-                                std::cout << "Stop event decrementation failed with code " << errno << std::endl <<
-                                    "Server will stop anyway" << std::endl;
+                                msg += std::string("\nStop event decrementation failed with code ") +
+                                    std::to_string(errno) + ". Server will stop anyway";
                             }
                             if (masterTcpSocket != -1)
                             {
@@ -313,6 +298,8 @@ namespace simpleApp
                                 removeFromEPoll(epollfd, masterUdpSocket);
                             }
                             
+                            std::cout << msg << std::endl;
+
                             stopEventHappened = true;
                         }
                         else if (initSession(events[i]))
@@ -321,20 +308,74 @@ namespace simpleApp
                         }
                         else if (events[i].data.ptr != nullptr)
                         {
-                            continue;
-                            /*
                             auto clientSession = reinterpret_cast<ClientSession*>(events[i].data.ptr);
-                            if (clientSession->proceed(events[i]) == -1)
+                            auto result = clientSession->proceed(events[i]);
+                            std::string msg = "";
+
+                            switch (result.status)
                             {
-                                slavesForRemove.push_back(clientSession);
-                            }*/
+                            case session_status::proceed_msg_send:
+                            case session_status::proceed_udp_connup:
+                                slavesForRemove.erase(clientSession);
+                                break;
+
+                            case session_status::proceed_disconnect:
+                                slavesForRemove.insert(clientSession);
+                                msg = std::string("Session has been closed by client");
+                                break;
+                            case session_status::proceed_udp_timeout:
+                                slavesForRemove.insert(clientSession);
+                                msg = std::string("Timeout triggered");
+                                break;
+                            case session_status::proceed_udp_client_timeout:
+                                slavesForRemove.insert(clientSession);
+                                msg = std::string("Session has been closed by client because of timeout");
+                                break;
+                            case session_status::proceed_udp_timer_fail:
+                                slavesForRemove.insert(clientSession);
+                                msg = std::string("Session has been closed because of timer failure");
+                                break;
+
+                            case session_status::proceed_recv_fail:
+                                msg = std::string("RECV failed");
+                                break;
+                            case session_status::proceed_send_fail:
+                                msg = std::string("SEND failed");
+                                break;
+                            case session_status::proceed_udp_wrong_header:
+                                msg = std::string("Received message with wrong header");
+                                break;
+                            case session_status::proceed_unknown_fd:
+                                msg = std::string("Unknown fd connected");
+                                break;
+
+                            case session_status::proceed_udp_false_timeout:
+                            case session_status::proceed_udp_socket_was_closed:
+                                break;
+                            
+                            default:
+                                msg = std::string("Unknown error");
+                                break;
+                            }
+                            
+                            if (result.err != 0)
+                                msg += std::string(" Returned code: ") + std::to_string(result.err);
+                            
+                            if (msg != std::string(""))
+                            {
+                                std::cout << clientSession->getName() << ". " << msg << std::endl;
+                            }
+                                
                         }
                         else
                         {
-                            std::wcout << L"Found unknown decriptor. Trying to remove from epoll" << std::endl;
+                            std::string msg = "Found unknown decriptor. ";
                             if (removeFromEPoll(epollfd, events[i].data.fd) == -1)
-                                std::wcout << L"Unknown decriptor removal failed with code " << errno << std::endl;
-                            removeFromEPoll(epollfd, events[i].data.fd);
+                                msg += std::string("Removal failed with code ") + std::to_string(errno);
+                            else
+                                msg += "Removed from epoll successfully";
+
+                            std::cout << msg << std::endl;
                         }
                     }
 
@@ -344,6 +385,8 @@ namespace simpleApp
                         delete val;
                     }
                 }
+
+                std::cout << "Closing all sessions" << std::endl;
 
                 free(events);
                 for(auto& val: slaveSocketsMap)

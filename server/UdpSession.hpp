@@ -26,5 +26,6 @@ namespace simpleApp
     private:
         int timerfd = -1;
         bool timerReset();
+        bool isTimeout = false;
     };
 }

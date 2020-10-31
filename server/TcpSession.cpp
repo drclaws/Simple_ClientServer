@@ -16,24 +16,24 @@
 
 namespace simpleApp
 {
-    TcpSession::TcpSession(int& epollfd) : ClientSession(epollfd)
+    TcpSession::TcpSession(int& epollfd) : ClientSession(epollfd, "TCP")
     {
         //TODO
     }
 
     session_result TcpSession::init(socket_t masterSocket, uint16_t port)
     {
-        this->address = new sockaddr_in;
+        struct sockaddr_in address;
         socklen_t len = static_cast<socklen_t>(sizeof(sockaddr_in));
 
-        this->_socket = accept(masterSocket, (sockaddr *)this->address, &len);
+        this->_socket = accept(masterSocket, (sockaddr *)&address, &len);
         if (this->_socket == -1)
         {
-            delete this->address;
-            this->address = nullptr;
             return session_result {session_status::init_socket_setup_fail, errno};
         }
         
+        this->_name += std::string(" (") + addressToString(address) + std::string(")");
+
         if (set_nonblock(this->_socket) == -1)
         {
             auto err = errno;
