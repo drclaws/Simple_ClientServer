@@ -1,6 +1,12 @@
 #pragma once
 
+#if defined(__linux__)
 #include <sys/timerfd.h>
+
+#else
+#error System is not supported
+
+#endif
 
 #include "ClientSession.hpp"
 #include "session_result.h"

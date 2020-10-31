@@ -2,9 +2,15 @@
 
 #include "UdpSession.hpp"
 
+#if defined(__linux__)
 #include <sys/epoll.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+
+#else
+#error System is not supported
+
+#endif
 
 #include <unistd.h>
 

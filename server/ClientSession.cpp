@@ -1,7 +1,13 @@
 #include "ClientSession.hpp"
 
+#if defined(__linux__)
 #include <sys/socket.h>
 #include <sys/epoll.h>
+
+#else
+#error System is not supported
+
+#endif
 
 #include <unistd.h>
 

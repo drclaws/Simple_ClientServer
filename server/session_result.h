@@ -1,7 +1,5 @@
 #pragma once
 
-#include <netinet/in.h>
-
 #include <stdint.h>
 
 namespace simpleApp 

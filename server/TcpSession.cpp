@@ -1,10 +1,16 @@
 #include "TcpSession.hpp"
 
+#if defined(__linux__)
 #include <sys/socket.h>
 #include <sys/epoll.h>
+#include <errno.h>
+
+#else
+#error System is not supported
+
+#endif
 
 #include <unistd.h>
-#include <errno.h>
 
 #include <simple_lib/common.h>
 

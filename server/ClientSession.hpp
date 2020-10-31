@@ -1,6 +1,13 @@
 #pragma once
 
+#if defined(__linux__)
 #include <netinet/in.h>
+
+#else
+#error System is not supported
+
+#endif
+
 #include <simple_lib/common.h>
 
 #include "session_result.h"

@@ -2,11 +2,17 @@
 #include <set>
 #include <vector>
 
+#if defined(__linux__)
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <sys/epoll.h>
 #include <sys/eventfd.h>
+
+#else
+#error System is not supported
+
+#endif
 
 #include <unistd.h>
 
