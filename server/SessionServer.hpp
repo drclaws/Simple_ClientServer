@@ -7,29 +7,26 @@
 
 
 #include <simple_lib/common.h>
+#include <simple_lib/Session.hpp>
 
 #include "session_result.h"
 
 namespace simpleApp
 {
-    class Session 
+    class SessionServer : public Session
     {
     public:
-        virtual ~Session();
+        virtual ~SessionServer();
         
-        virtual session_result init(socket_t masterSocket, uint16_t port) = 0;
+        virtual session_result init(socket_t masterSocket) = 0;
         virtual session_result proceed() = 0;
         
         std::string getName();
         
     protected:
-        socket_t _socket = -1;
-        int epollfd;
         std::string _name;
 
-        Session(int epollfd, std::string name = "");
-
-        void sessionClose();
+        SessionServer(int epollfd, std::string name = "");
     };
 
     std::string addressToString(sockaddr_in& address);

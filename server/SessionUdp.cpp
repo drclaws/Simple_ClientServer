@@ -14,7 +14,7 @@
 
 namespace simpleApp
 {
-    SessionUdp::SessionUdp(int epollfd) : Session(epollfd, std::string("UDP"))
+    SessionUdp::SessionUdp(int epollfd) : SessionServer(epollfd, std::string("UDP"))
     {
         
     }
@@ -41,7 +41,7 @@ namespace simpleApp
         }
     }
 
-    session_result SessionUdp::init(socket_t masterSocket, uint16_t port)
+    session_result SessionUdp::init(socket_t masterSocket)
     {
         const size_t buffCheckLength = sizeof(msg_headers) + 1;
         uint8_t msgBuff[buffCheckLength];
@@ -63,7 +63,7 @@ namespace simpleApp
         if (*(reinterpret_cast<msg_headers *>(msgBuff)) != msg_headers::client_connup)
             return session_result(session_status::init_udp_wrong_header);
 
-        auto initSocket = [this, port, &address]()
+        auto initSocket = [this, &address]()
         {
             this->timerfd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK);
             
@@ -125,7 +125,7 @@ namespace simpleApp
             sockaddr_in socketBindAddress;
             bzero(&socketBindAddress, sizeof(socketBindAddress));
             socketBindAddress.sin_addr.s_addr = htonl(INADDR_ANY);
-            socketBindAddress.sin_port = htons(port);
+            socketBindAddress.sin_port = htons(PUBLIC_PORT);
             socketBindAddress.sin_family = AF_INET;
 
             if (bind(this->_socket, (sockaddr *)&socketBindAddress, sizeof(socketBindAddress)) == -1)

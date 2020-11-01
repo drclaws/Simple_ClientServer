@@ -1,7 +1,5 @@
 #pragma once
 
-#include <stdint.h>
-
 namespace simpleApp 
 {
     class Server
@@ -10,7 +8,7 @@ namespace simpleApp
         Server();  
         ~Server();
 
-        int serverLoop(uint16_t port);
+        int serverLoop();
 
         int initStop();
 

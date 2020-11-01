@@ -7,6 +7,8 @@ namespace simpleApp
 {
     const unsigned int WAIT_TIMEOUT_SEC = 15;
     const std::size_t MESSAGE_MAX_BUFFER = 1000;
+    
+    const uint16_t PUBLIC_PORT = static_cast<uint16_t>(35830);
 
     typedef uint8_t header_base_type;
 
@@ -47,7 +49,7 @@ namespace simpleApp
         // Data proceeding (TCP possible)
         client_msg =            sender_client | message,
         server_msg =            sender_server | message,
-        incorrect_msg =        sender_server | message | error     // Error in client message
+        incorrect_msg =         sender_server | message | error     // Error in client message
     };
 
     typedef int socket_t;

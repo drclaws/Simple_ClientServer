@@ -2,18 +2,18 @@
 
 #include <sys/timerfd.h>
 
-#include "Session.hpp"
+#include "SessionServer.hpp"
 #include "session_result.h"
 
 namespace simpleApp
 {
-    class SessionUdp : public Session
+    class SessionUdp : public SessionServer
     {
     public:
         SessionUdp(int epollfd);
         ~SessionUdp();
 
-        session_result init(socket_t masterSocket, uint16_t port) override;
+        session_result init(socket_t masterSocket) override;
         
         session_result proceed() override;
         

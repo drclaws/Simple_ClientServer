@@ -1,4 +1,4 @@
-#include "Session.hpp"
+#include "SessionServer.hpp"
 
 #include <sys/socket.h>
 #include <sys/epoll.h>
@@ -7,30 +7,19 @@
 
 namespace simpleApp
 {
-    Session::Session(int epollfd, std::string name) : epollfd(epollfd), _name(name)
+    SessionServer::SessionServer(int epollfd, std::string name) : Session(epollfd), _name(name)
     {
         
     }
 
-    Session::~Session()
+    SessionServer::~SessionServer()
     {
-        this->sessionClose();
+        
     }
 
-    std::string Session::getName()
+    std::string SessionServer::getName()
     {
         return this->_name;
-    }
-
-    void Session::sessionClose()
-    {
-        if (this->_socket != -1)
-        {
-            epoll_ctl(this->epollfd, EPOLL_CTL_DEL, this->_socket, 0);
-            shutdown(this->_socket, SHUT_RDWR);
-            close(this->_socket);
-            this->_socket = -1;
-        }
     }
 
     std::string addressToString(sockaddr_in& address)

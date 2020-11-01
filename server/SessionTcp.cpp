@@ -12,7 +12,7 @@
 
 namespace simpleApp
 {
-    SessionTcp::SessionTcp(int epollfd) : Session(epollfd, std::string("TCP"))
+    SessionTcp::SessionTcp(int epollfd) : SessionServer(epollfd, std::string("TCP"))
     {
         
     }
@@ -22,7 +22,7 @@ namespace simpleApp
 
     }
 
-    session_result SessionTcp::init(socket_t masterSocket, uint16_t port)
+    session_result SessionTcp::init(socket_t masterSocket)
     {
         sockaddr_in address;
         socklen_t len = static_cast<socklen_t>(sizeof(sockaddr_in));

@@ -1,3 +1,5 @@
+#include "Server.hpp"
+
 #include <iostream>
 #include <set>
 #include <vector>
@@ -13,8 +15,7 @@
 
 #include <simple_lib/common.h>
 
-#include "Server.hpp"
-#include "Session.hpp"
+#include "SessionServer.hpp"
 #include "SessionUdp.hpp"
 #include "SessionTcp.hpp"
 
@@ -46,7 +47,7 @@ namespace simpleApp
         return modeEpoll(epollfd, EPOLL_CTL_DEL, fd, 0, 0);
     }
 
-    inline socket_t createTcpSocket(uint16_t port, int& err)
+    inline socket_t createTcpSocket(int& err)
     {
         socket_t newSocket = socket(AF_INET, SOCK_STREAM, 0);
         if (newSocket == -1)
@@ -72,7 +73,7 @@ namespace simpleApp
         sockaddr_in serverTcpAddress;
         bzero(&serverTcpAddress, sizeof(serverTcpAddress));
         serverTcpAddress.sin_addr.s_addr = htonl(INADDR_ANY);
-        serverTcpAddress.sin_port = htons(port);
+        serverTcpAddress.sin_port = htons(PUBLIC_PORT);
         serverTcpAddress.sin_family = AF_INET;
         
         if (bind(newSocket, (sockaddr *)&serverTcpAddress, sizeof(serverTcpAddress)) == -1)
@@ -94,7 +95,7 @@ namespace simpleApp
         return newSocket;
     }
 
-    inline socket_t createUdpSocket(uint16_t& port, int& err)
+    inline socket_t createUdpSocket(int& err)
     {
         socket_t newSocket = socket(AF_INET, SOCK_DGRAM, 0);
 
@@ -121,7 +122,7 @@ namespace simpleApp
         sockaddr_in serverUdpAddress;
         bzero(&serverUdpAddress, sizeof(serverUdpAddress));
         serverUdpAddress.sin_addr.s_addr = htonl(INADDR_ANY);
-        serverUdpAddress.sin_port = htons(port);
+        serverUdpAddress.sin_port = htons(PUBLIC_PORT);
         serverUdpAddress.sin_family = AF_INET;
 
         if (bind(newSocket, (sockaddr *)&serverUdpAddress, sizeof(serverUdpAddress)) == -1)
@@ -146,7 +147,7 @@ namespace simpleApp
             close(this->stopEventFd);
     }
 
-    int Server::serverLoop(uint16_t port)
+    int Server::serverLoop()
     {
         if(this->stopEventFd == -1)
         {
@@ -157,12 +158,12 @@ namespace simpleApp
         std::cout << "Starting server" << std::endl << std::flush;
 
         int err;
-        socket_t masterTcpSocket = createTcpSocket(port, err);
+        socket_t masterTcpSocket = createTcpSocket(err);
 
         if (masterTcpSocket == -1)
             std::cout << "TCP master socket initialization failed with code " << err << std::endl << std::flush;
         
-        socket_t masterUdpSocket = createUdpSocket(port, err);
+        socket_t masterUdpSocket = createUdpSocket(err);
 
         if (masterUdpSocket == -1)
             std::cout << "UDP master socket initialization failed with code " << err << std::endl << std::flush;
@@ -224,24 +225,24 @@ namespace simpleApp
                 const size_t MAX_EVENTS_BUFFER = 10000;
                 epoll_event * events = static_cast<epoll_event *>(calloc(MAX_EVENTS_BUFFER, sizeof(epoll_event)));
                 
-                std::set<Session*> slaveSocketsMap = std::set<Session *>();
+                std::set<SessionServer*> slaveSocketsMap = std::set<SessionServer *>();
 
                 bool stopEventHappened = false;
 
-                auto initSession = [&slaveSocketsMap, &masterTcpSocket, &masterUdpSocket, &epollfd, port](epoll_event& event)
+                auto initSession = [&slaveSocketsMap, &masterTcpSocket, &masterUdpSocket, &epollfd](epoll_event& event)
                 {
-                    Session* clientSession;
+                    SessionServer* clientSession;
                     session_result result;
 
                     if (event.data.ptr == &masterTcpSocket)
                     {
                         clientSession = new SessionTcp(epollfd);
-                        result = clientSession->init(masterTcpSocket, port);
+                        result = clientSession->init(masterTcpSocket);
                     }
                     else if (event.data.ptr == &masterUdpSocket)
                     {
                         clientSession = new SessionUdp(epollfd);
-                        result = clientSession->init(masterUdpSocket, port);
+                        result = clientSession->init(masterUdpSocket);
                     }
                     else
                         return false;
@@ -310,7 +311,7 @@ namespace simpleApp
                 };
                 while (!stopEventHappened)
                 {
-                    std::set<Session*> slavesForRemove = std::set<Session*>();
+                    std::set<SessionServer*> slavesForRemove = std::set<SessionServer*>();
                     int N = epoll_wait(epollfd, events, MAX_EVENTS_BUFFER, -1);
                     for (size_t i = 0; static_cast<int>(i) < N; i++)
                     {
@@ -344,7 +345,7 @@ namespace simpleApp
                         }
                         else
                         {
-                            auto clientSession = reinterpret_cast<Session*>(events[i].data.ptr);
+                            auto clientSession = reinterpret_cast<SessionServer*>(events[i].data.ptr);
                             if(slaveSocketsMap.find(clientSession) == slaveSocketsMap.end())
                             {
                                 std::cout << "Unknown event happened" << std::endl;
