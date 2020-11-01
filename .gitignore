@@ -1,9 +1,2 @@
-# Temporary ignored while not complited
-client/
-CMakeList.txt
-makefile
-simple_lib/include/simple_lib/message.cpp
-
-# C++ build files and directories
+## C++ build files and directories
 build/
-*.o

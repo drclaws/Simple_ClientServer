@@ -1,16 +1,10 @@
-#include "UdpSession.hpp"
+#include "SessionUdp.hpp"
 
 #include <cstring>
 
-#if defined(__linux__)
 #include <sys/epoll.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-
-#else
-#error System is not supported
-
-#endif
 
 #include <unistd.h>
 
@@ -20,12 +14,12 @@
 
 namespace simpleApp
 {
-    UdpSession::UdpSession(int epollfd) : ClientSession(epollfd, std::string("UDP"))
+    SessionUdp::SessionUdp(int epollfd) : Session(epollfd, std::string("UDP"))
     {
         
     }
 
-    UdpSession::~UdpSession()
+    SessionUdp::~SessionUdp()
     {
         if (this->timerfd != -1)
         {
@@ -47,7 +41,7 @@ namespace simpleApp
         }
     }
 
-    session_result UdpSession::init(socket_t masterSocket, uint16_t port)
+    session_result SessionUdp::init(socket_t masterSocket, uint16_t port)
     {
         const size_t buffCheckLength = sizeof(msg_headers) + 1;
         uint8_t msgBuff[buffCheckLength];
@@ -176,7 +170,7 @@ namespace simpleApp
         return result;
     }
 
-    session_result UdpSession::proceed()
+    session_result SessionUdp::proceed()
     {
         if (this->_socket == -1)
         {
@@ -291,7 +285,7 @@ namespace simpleApp
         return session_result(session_status::proceed_unknown_fd);
     }
 
-    bool UdpSession::timerReset()
+    bool SessionUdp::timerReset()
     {
         this->isTimeout = false;
 

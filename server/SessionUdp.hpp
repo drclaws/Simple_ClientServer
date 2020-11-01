@@ -1,23 +1,17 @@
 #pragma once
 
-#if defined(__linux__)
 #include <sys/timerfd.h>
 
-#else
-#error System is not supported
-
-#endif
-
-#include "ClientSession.hpp"
+#include "Session.hpp"
 #include "session_result.h"
 
 namespace simpleApp
 {
-    class UdpSession : public ClientSession
+    class SessionUdp : public Session
     {
     public:
-        UdpSession(int epollfd);
-        ~UdpSession();
+        SessionUdp(int epollfd);
+        ~SessionUdp();
 
         session_result init(socket_t masterSocket, uint16_t port) override;
         

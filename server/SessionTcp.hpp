@@ -2,16 +2,16 @@
 
 #include <simple_lib/common.h>
 
-#include "ClientSession.hpp"
+#include "Session.hpp"
 #include "session_result.h"
 
 namespace simpleApp
 {
-    class TcpSession : public ClientSession
+    class SessionTcp : public Session
     {
     public:
-        TcpSession(int epollfd);
-        ~TcpSession();
+        SessionTcp(int epollfd);
+        ~SessionTcp();
 
         session_result init(socket_t masterSocket, uint16_t port) override;
         

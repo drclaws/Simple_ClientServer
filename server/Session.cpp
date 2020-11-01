@@ -1,34 +1,28 @@
-#include "ClientSession.hpp"
+#include "Session.hpp"
 
-#if defined(__linux__)
 #include <sys/socket.h>
 #include <sys/epoll.h>
-
-#else
-#error System is not supported
-
-#endif
 
 #include <unistd.h>
 
 namespace simpleApp
 {
-    ClientSession::ClientSession(int epollfd, std::string name) : epollfd(epollfd), _name(name)
+    Session::Session(int epollfd, std::string name) : epollfd(epollfd), _name(name)
     {
         
     }
 
-    ClientSession::~ClientSession()
+    Session::~Session()
     {
         this->sessionClose();
     }
 
-    std::string ClientSession::getName()
+    std::string Session::getName()
     {
         return this->_name;
     }
 
-    void ClientSession::sessionClose()
+    void Session::sessionClose()
     {
         if (this->_socket != -1)
         {

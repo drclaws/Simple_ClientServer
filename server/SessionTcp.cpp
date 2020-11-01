@@ -1,14 +1,8 @@
-#include "TcpSession.hpp"
+#include "SessionTcp.hpp"
 
-#if defined(__linux__)
 #include <sys/socket.h>
 #include <sys/epoll.h>
 #include <errno.h>
-
-#else
-#error System is not supported
-
-#endif
 
 #include <unistd.h>
 
@@ -18,17 +12,17 @@
 
 namespace simpleApp
 {
-    TcpSession::TcpSession(int epollfd) : ClientSession(epollfd, std::string("TCP"))
+    SessionTcp::SessionTcp(int epollfd) : Session(epollfd, std::string("TCP"))
     {
         
     }
 
-    TcpSession::~TcpSession()
+    SessionTcp::~SessionTcp()
     {
 
     }
 
-    session_result TcpSession::init(socket_t masterSocket, uint16_t port)
+    session_result SessionTcp::init(socket_t masterSocket, uint16_t port)
     {
         sockaddr_in address;
         socklen_t len = static_cast<socklen_t>(sizeof(sockaddr_in));
@@ -72,7 +66,7 @@ namespace simpleApp
         return session_result(session_status::init_success);
     }
 
-    session_result TcpSession::proceed()
+    session_result SessionTcp::proceed()
     {
         uint8_t buffer[MESSAGE_MAX_BUFFER];
         auto len = recv(this->_socket, buffer, MESSAGE_MAX_BUFFER, 0);

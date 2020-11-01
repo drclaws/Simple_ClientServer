@@ -16,7 +16,7 @@ simpleApp::Server server = simpleApp::Server();
 
 void onExit(int s)
 {
-    int err = server.stop();
+    int err = server.raiseStop();
     
     if(err != 0)
         std::cout << "Stop event trigger failed with code " << err << std::endl;
@@ -34,8 +34,7 @@ int main(int argc, char** argv)
     new_term_attr.c_cc[VMIN] = 0;
     tcsetattr(fileno(stdin), TCSANOW, &new_term_attr);
 
-    std::cout << "Welcome to the SimpleServer!" << std::endl <<
-        "For exit press Ctrl+C" << std::endl;
+    std::cout << "Welcome to the Simple Server! For exit press Ctrl+C" << std::endl;
             
     int err = server.initStop();
     if(err != 0)

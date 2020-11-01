@@ -1,7 +1,6 @@
 #pragma once
 
 #include <stdint.h>
-#include <stdlib.h>
 
 namespace simpleApp 
 {
@@ -15,9 +14,9 @@ namespace simpleApp
 
         int initStop();
 
-        int stop();
+        int raiseStop();
 
     private:
-        int stopObject = -1;
+        int stopEventFd = -1;
     };
 } // namespace simpleApp

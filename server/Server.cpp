@@ -2,7 +2,6 @@
 #include <set>
 #include <vector>
 
-#if defined(__linux__)
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <netinet/in.h>
@@ -10,19 +9,14 @@
 #include <sys/eventfd.h>
 #include <strings.h>
 
-#else
-#error System is not supported
-
-#endif
-
 #include <unistd.h>
 
 #include <simple_lib/common.h>
 
 #include "Server.hpp"
-#include "ClientSession.hpp"
-#include "UdpSession.hpp"
-#include "TcpSession.hpp"
+#include "Session.hpp"
+#include "SessionUdp.hpp"
+#include "SessionTcp.hpp"
 
 namespace simpleApp
 {
@@ -148,13 +142,13 @@ namespace simpleApp
     
     Server::~Server()
     {
-        if (this->stopObject != -1)
-            close(this->stopObject);
+        if (this->stopEventFd != -1)
+            close(this->stopEventFd);
     }
 
     int Server::serverLoop(uint16_t port)
     {
-        if(this->stopObject == -1)
+        if(this->stopEventFd == -1)
         {
             std::cout << "Stop event object is not initialized" << std::endl << std::flush;
             return -1;
@@ -187,7 +181,7 @@ namespace simpleApp
             std::cout << "EPoll creation failed with code " << errno << std::endl << std::flush;
             isFailed = true;
         }
-        else if(addToEPoll(epollfd, this->stopObject, &this->stopObject, EPOLLIN) == -1)
+        else if(addToEPoll(epollfd, this->stopEventFd, &this->stopEventFd, EPOLLIN) == -1)
         {
             std::cout << "EPOLL_CTL_ADD of stop event object failed with code " << errno << std::endl << std::flush;
             isFailed = true;
@@ -230,23 +224,23 @@ namespace simpleApp
                 const size_t MAX_EVENTS_BUFFER = 10000;
                 epoll_event * events = static_cast<epoll_event *>(calloc(MAX_EVENTS_BUFFER, sizeof(epoll_event)));
                 
-                std::set<ClientSession*> slaveSocketsMap = std::set<ClientSession *>();
+                std::set<Session*> slaveSocketsMap = std::set<Session *>();
 
                 bool stopEventHappened = false;
 
                 auto initSession = [&slaveSocketsMap, &masterTcpSocket, &masterUdpSocket, &epollfd, port](epoll_event& event)
                 {
-                    ClientSession* clientSession;
+                    Session* clientSession;
                     session_result result;
 
                     if (event.data.ptr == &masterTcpSocket)
                     {
-                        clientSession = new TcpSession(epollfd);
+                        clientSession = new SessionTcp(epollfd);
                         result = clientSession->init(masterTcpSocket, port);
                     }
                     else if (event.data.ptr == &masterUdpSocket)
                     {
-                        clientSession = new UdpSession(epollfd);
+                        clientSession = new SessionUdp(epollfd);
                         result = clientSession->init(masterUdpSocket, port);
                     }
                     else
@@ -316,17 +310,17 @@ namespace simpleApp
                 };
                 while (!stopEventHappened)
                 {
-                    std::set<ClientSession*> slavesForRemove = std::set<ClientSession*>();
+                    std::set<Session*> slavesForRemove = std::set<Session*>();
                     int N = epoll_wait(epollfd, events, MAX_EVENTS_BUFFER, -1);
                     for (size_t i = 0; static_cast<int>(i) < N; i++)
                     {
-                        if (events[i].data.ptr == &this->stopObject)
+                        if (events[i].data.ptr == &this->stopEventFd)
                         {
                             eventfd_t decrement = 1;
                             
                             std::string msg = "Stop event happened";
 
-                            if (eventfd_read(this->stopObject, static_cast<eventfd_t *>(&decrement)) == -1)
+                            if (eventfd_read(this->stopEventFd, static_cast<eventfd_t *>(&decrement)) == -1)
                             {
                                 msg += std::string("\nStop event decrementation failed with code ") +
                                     std::to_string(errno) + ". Server will stop anyway";
@@ -350,7 +344,7 @@ namespace simpleApp
                         }
                         else
                         {
-                            auto clientSession = reinterpret_cast<ClientSession*>(events[i].data.ptr);
+                            auto clientSession = reinterpret_cast<Session*>(events[i].data.ptr);
                             if(slaveSocketsMap.find(clientSession) == slaveSocketsMap.end())
                             {
                                 std::cout << "Unknown event happened" << std::endl;
@@ -464,7 +458,7 @@ namespace simpleApp
                     delete val;
             }
             
-            removeFromEPoll(epollfd, this->stopObject);
+            removeFromEPoll(epollfd, this->stopEventFd);
         }
         
         if(epollfd != -1)
@@ -485,19 +479,19 @@ namespace simpleApp
 
     int Server::initStop() 
     {
-        if (this->stopObject != -1)
-            close(this->stopObject);
+        if (this->stopEventFd != -1)
+            close(this->stopEventFd);
         
-        this->stopObject = eventfd(0, EFD_NONBLOCK);
+        this->stopEventFd = eventfd(0, EFD_NONBLOCK);
 
-        return this->stopObject == -1 ? errno : 0;
+        return this->stopEventFd == -1 ? errno : 0;
     }
 
-    int Server::stop()
+    int Server::raiseStop()
     {
-        if (this->stopObject != -1)
+        if (this->stopEventFd != -1)
         {
-            if (eventfd_write(this->stopObject, static_cast<eventfd_t>(1)) == -1)
+            if (eventfd_write(this->stopEventFd, static_cast<eventfd_t>(1)) == -1)
                 return errno;
         }
 
