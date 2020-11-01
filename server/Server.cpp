@@ -193,23 +193,33 @@ namespace simpleApp
             isFailed = true;
         }
         else
-        {            
-            if (masterTcpSocket != -1 && addToEPoll(epollfd, masterTcpSocket, &masterTcpSocket, EPOLLIN | EPOLLET) == -1)
+        {    
+            if (masterTcpSocket != -1)
             {
-                std::cout << "EPOLL_CTL_ADD of TCP master socket failed with code " << errno << std::endl << std::flush;
-                shutdown(masterTcpSocket, SHUT_RDWR);
-                close(masterTcpSocket);
-                masterTcpSocket = -1;
+                if (addToEPoll(epollfd, masterTcpSocket, &masterTcpSocket, EPOLLIN | EPOLLET) == -1)
+                {
+                    std::cout << "EPOLL_CTL_ADD of TCP master socket failed with code " << errno << std::endl << std::flush;
+                    shutdown(masterTcpSocket, SHUT_RDWR);
+                    close(masterTcpSocket);
+                    masterTcpSocket = -1;
+                }
+                else 
+                    std::cout << "TCP-connection enabled" << std::endl;
             }
 
-            if (masterUdpSocket != -1 && addToEPoll(epollfd, masterUdpSocket, &masterUdpSocket, EPOLLIN | EPOLLET) == -1)
+            if (masterUdpSocket != -1)
             {
-                std::cout << "EPOLL_CTL_ADD of UDP master socket failed with code " << errno << std::endl << std::flush;
-                shutdown(masterUdpSocket, SHUT_RDWR);
-                close(masterUdpSocket);
-                masterUdpSocket = -1;
+                if (addToEPoll(epollfd, masterUdpSocket, &masterUdpSocket, EPOLLIN | EPOLLET) == -1)
+                {
+                    std::cout << "EPOLL_CTL_ADD of UDP master socket failed with code " << errno << std::endl << std::flush;
+                    shutdown(masterUdpSocket, SHUT_RDWR);
+                    close(masterUdpSocket);
+                    masterUdpSocket = -1;
+                }
+                else
+                    std::cout << "UDP-connection enabled" << std::endl;
             }
-            
+
             if (masterTcpSocket == -1 && masterUdpSocket == -1) 
             {
                 std::cout << "There are no master sockets linked to epoll object" << std::endl << std::flush;
