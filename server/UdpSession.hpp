@@ -16,12 +16,12 @@ namespace simpleApp
     class UdpSession : public ClientSession
     {
     public:
-        UdpSession(int& epollfd);
+        UdpSession(int epollfd);
         ~UdpSession();
 
         session_result init(socket_t masterSocket, uint16_t port) override;
         
-        session_result proceed(struct epoll_event& epoll_event) override;
+        session_result proceed() override;
         
     private:
         int timerfd = -1;

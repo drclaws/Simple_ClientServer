@@ -39,5 +39,5 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    return server.serverLoop(static_cast<uint16_t>(35830));
+    return server.serverLoop(static_cast<uint16_t>(35831));
 }

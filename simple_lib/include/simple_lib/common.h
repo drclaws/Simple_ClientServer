@@ -1,11 +1,12 @@
 #pragma once
 
+#include <cstddef>
 #include <stdint.h>
 
 namespace simpleApp
 {
     const unsigned int WAIT_TIMEOUT_SEC = 15;
-    const size_t MESSAGE_MAX_BUFFER = 1000;
+    const std::size_t MESSAGE_MAX_BUFFER = 1000;
 
     typedef uint8_t header_base_type;
 

@@ -1,5 +1,3 @@
-#pragma once
-
 #include "UdpSession.hpp"
 
 #include <cstring>
@@ -22,7 +20,7 @@
 
 namespace simpleApp
 {
-    UdpSession::UdpSession(int& epollfd) : ClientSession(epollfd, "UDP")
+    UdpSession::UdpSession(int epollfd) : ClientSession(epollfd, std::string("UDP"))
     {
         
     }
@@ -53,47 +51,47 @@ namespace simpleApp
     {
         const size_t buffCheckLength = sizeof(msg_headers) + 1;
         uint8_t msgBuff[buffCheckLength];
-        struct sockaddr_in address;
-        socklen_t len = static_cast<socklen_t>(sizeof(sockaddr_in));
+        sockaddr_in address;
+        socklen_t addressLen = static_cast<socklen_t>(sizeof(sockaddr_in));
 
-        auto len = recvfrom(masterSocket, msgBuff, buffCheckLength, 0, (sockaddr *)&address, &len);
+        auto len = recvfrom(masterSocket, msgBuff, buffCheckLength, 0, (sockaddr *)&address, &addressLen);
 
         if (len == -1)
         {
-            return session_result {session_status::init_listener_fail, errno};
+            return session_result(session_status::init_listener_fail, errno);
         }
         
         this->_name += std::string(" (") + addressToString(address) + std::string(")");
 
         if (len != sizeof(msg_headers))
-            return session_result {session_status::init_udp_wrong_length};
+            return session_result(session_status::init_udp_wrong_length);
         
         if (*(reinterpret_cast<msg_headers *>(msgBuff)) != msg_headers::client_connup)
-            return session_result {session_status::init_udp_wrong_header};
+            return session_result(session_status::init_udp_wrong_header);
 
         auto initSocket = [this, port, &address]()
         {
             this->timerfd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK);
             
             if (this->timerfd == -1)
-                return session_result {session_status::init_udp_timer_fail};
+                return session_result(session_status::init_udp_timer_fail);
             
             if (!this->timerReset())
             {
-                auto result = session_result {session_status::init_udp_timer_fail, errno};
+                auto result = session_result(session_status::init_udp_timer_fail, errno);
                 close(this->timerfd);
                 this->timerfd = -1;
                 return result;
             }
             
-            struct epoll_event timerEvent;
+            epoll_event timerEvent;
             timerEvent.events = EPOLLIN;
             timerEvent.data.fd = this->timerfd;
             timerEvent.data.ptr = this;
 
             if (epoll_ctl(this->epollfd, EPOLL_CTL_DEL, this->timerfd, &timerEvent) == -1)
             {
-                auto result = session_result {session_status::init_udp_timer_fail, errno};
+                auto result = session_result(session_status::init_udp_timer_fail, errno);
                 close(this->timerfd);
                 this->timerfd = -1;
                 return result;
@@ -102,12 +100,12 @@ namespace simpleApp
             this->_socket = socket(AF_INET, SOCK_DGRAM, 0);
             if (this->_socket == -1)
             {
-                return session_result {session_status::init_socket_setup_fail, errno};
+                return session_result(session_status::init_socket_setup_fail, errno);
             }
 
             if (set_nonblock(this->_socket) == -1)
             {
-                auto result = session_result {session_status::init_socket_setup_fail, errno};
+                auto result = session_result(session_status::init_socket_setup_fail, errno);
                 close(this->_socket);
                 this->_socket = -1;
                 return result;
@@ -116,7 +114,7 @@ namespace simpleApp
             int optval = 1;
             if (setsockopt(this->_socket, SOL_SOCKET, SO_REUSEADDR, &optval, static_cast<socklen_t>(sizeof(optval))) == -1)
             {
-                auto result = session_result {session_status::init_socket_setup_fail, errno};
+                auto result = session_result(session_status::init_socket_setup_fail, errno);
                 close(this->_socket);
                 this->_socket = -1;
                 return result;
@@ -124,41 +122,42 @@ namespace simpleApp
             
             if (connect(this->_socket, (sockaddr *)&address, sizeof(sockaddr_in)) == -1)
             {
-                auto result = session_result {session_status::init_socket_setup_fail, errno};
+                auto result = session_result(session_status::init_socket_setup_fail, errno);
                 close(this->_socket);
                 this->_socket = -1;
                 return result;
             }
 
-            struct sockaddr_in socketBindAddress;
+            sockaddr_in socketBindAddress;
+            bzero(&socketBindAddress, sizeof(socketBindAddress));
             socketBindAddress.sin_addr.s_addr = htonl(INADDR_ANY);
             socketBindAddress.sin_port = htons(port);
             socketBindAddress.sin_family = AF_INET;
 
             if (bind(this->_socket, (sockaddr *)&socketBindAddress, sizeof(socketBindAddress)) == -1)
             {
-                auto result = session_result {session_status::init_socket_setup_fail, errno};
+                auto result = session_result(session_status::init_socket_setup_fail, errno);
                 shutdown(this->_socket, SHUT_RDWR);
                 close(this->_socket);
                 this->_socket = -1;
                 return result;
             }
 
-            struct epoll_event socketEvent;
+            epoll_event socketEvent;
             socketEvent.data.fd = this->_socket;
             socketEvent.data.ptr = this;
             socketEvent.events = EPOLLIN;
 
             if (epoll_ctl(this->epollfd, EPOLL_CTL_ADD, this->_socket, &socketEvent) == -1)
             {
-                auto result = session_result {session_status::init_socket_setup_fail, errno};
+                auto result = session_result(session_status::init_socket_setup_fail, errno);
                 shutdown(this->_socket, SHUT_RDWR);
                 close(this->_socket);
                 this->_socket = -1;
                 return result;
             }
 
-            return session_result {session_status::init_success};
+            return session_result(session_status::init_success);
         };
         
         auto result = initSocket();
@@ -177,118 +176,126 @@ namespace simpleApp
         return result;
     }
 
-    session_result UdpSession::proceed(struct epoll_event& epoll_event)
+    session_result UdpSession::proceed()
     {
         if (this->_socket == -1)
         {
-            return session_result {session_status::proceed_udp_socket_was_closed};
+            return session_result(session_status::proceed_udp_socket_was_closed);
         }
         
-        if (epoll_event.data.fd == this->timerfd)
+        itimerspec timerData;
+        if (timerfd_gettime(this->timerfd, &timerData) == -1)
         {
-            struct itimerspec timerData;
-            if (timerfd_gettime(this->timerfd, &timerData) == -1)
-            {
-                auto result = session_result {session_status::proceed_udp_timer_fail, errno};
+            auto result = session_result(session_status::proceed_udp_timer_fail, errno);
 
-                const msg_headers header = msg_headers::server_session_err;
-                send(this->_socket, &header, sizeof(header), 0);
+            const msg_headers header = msg_headers::server_session_err;
+            send(this->_socket, &header, sizeof(header), 0);
 
-                this->sessionClose();
+            this->sessionClose();
 
-                return result;
-            }
-
-            if (timerData.it_value.tv_sec == 0 && timerData.it_value.tv_nsec == 0)
-            {
-                this->isTimeout = true;
-                return session_result {session_status::proceed_udp_timeout};
-            }
-            else
-            {
-                return session_result {session_status::proceed_udp_false_timeout};
-            }
+            return result;
         }
-        else if (epoll_event.data.fd == this->_socket)
+
+        if (timerData.it_value.tv_sec == 0 && timerData.it_value.tv_nsec == 0)
         {
-            uint8_t msgBuff[MESSAGE_MAX_BUFFER];
-            auto len = recv(this->_socket, msgBuff, MESSAGE_MAX_BUFFER, 0);
+            this->isTimeout = true;
+            return session_result(session_status::proceed_udp_timeout);
+        }
+        
+        uint8_t msgBuff[MESSAGE_MAX_BUFFER];
+        auto len = recv(this->_socket, msgBuff, MESSAGE_MAX_BUFFER, 0);
 
-            auto sendMsgError = [this]()
+        auto sendMsgError = [this]()
+        {
+            const msg_headers header = msg_headers::incorrect_msg;
+            send(this->_socket, &header, sizeof(msg_headers), 0);
+        };
+
+        if (len == -1 || static_cast<size_t>(len) < sizeof(msg_headers))
+        {
+            return session_result(session_status::proceed_recv_fail, errno);
+        }
+        if (static_cast<size_t>(len) < sizeof(msg_headers))
+        {
+            sendMsgError();
+
+            return session_result(session_status::init_udp_wrong_length);
+        }
+        else
+        {
+            auto header = *reinterpret_cast<msg_headers*>(msgBuff);
+
+            if (!(static_cast<header_base_type>(header) & static_cast<header_base_type>(msg_headers::sender_client)))
             {
-                const msg_headers header = msg_headers::incorrect_msg;
-                send(this->_socket, &header, sizeof(msg_headers), 0);
-            };
-
-            if (len == -1 || len < sizeof(msg_headers))
-            {
-                auto result = session_result {session_status::proceed_recv_fail, errno};
-
                 sendMsgError();
-
-                return result;
+                return session_result(session_status::proceed_wrong_header);
             }
-            else
-            {
-                auto header = *reinterpret_cast<msg_headers*>(msgBuff);
-
-                if (!(static_cast<header_base_type>(header) & static_cast<header_base_type>(msg_headers::sender_client)))
-                {
-                    sendMsgError();
-                    return session_result {session_status::proceed_wrong_header};
-                }
                 
-                if (len == sizeof(msg_headers))
+            if (len == sizeof(msg_headers))
+            {
+                session_result result;
+                switch(header)
                 {
-                    switch(header)
+                case msg_headers::client_connup:
                     {
-                    case msg_headers::client_connup:
                         const msg_headers connupBuff = msg_headers::server_connup;
                         this->timerReset();
                         if(send(this->_socket, &connupBuff, sizeof(connupBuff), 0) == -1)
-                            return session_result {session_status::proceed_send_fail, errno};
-                        return session_result {session_status::proceed_udp_connup};
-
-                    case msg_headers::client_conndown:
-                        this->sessionClose();
-                        return session_result {session_status::proceed_disconnect};
-
-                    case msg_headers::client_timeout:
-                        this->sessionClose();
-                        return session_result {session_status::proceed_udp_client_timeout};
+                            result = session_result(session_status::proceed_send_fail, errno);
+                        else
+                            result = session_result(session_status::proceed_udp_connup);
                         break;
+                    }
+                        
+                case msg_headers::client_conndown:
+                    {
+                        this->sessionClose();
+                        result = session_result(session_status::proceed_disconnect);
+                        break;
+                    }
 
-                    default:
+                case msg_headers::client_timeout:
+                    {
+                        this->sessionClose();
+                        result = session_result(session_status::proceed_udp_client_timeout);
+                        break;
+                    }
+                        
+                default:
+                    {
                         sendMsgError();
-                        return session_result {session_status::proceed_wrong_header};
-                    };
-                }
-                else if (header == msg_headers::client_msg)
-                {
-                    uint8_t buff[MESSAGE_MAX_BUFFER];
-                    
-                    auto sendLen = proceedMsg(msgBuff, len, buff);
+                        result = session_result(session_status::proceed_wrong_header);
+                        break;
+                    }
+                };
 
-                    if (send(this->_socket, buff, sendLen, 0) == -1)
-                        return session_result {session_status::proceed_send_fail, errno};
-                    return session_result {session_status::proceed_msg_send};
+                return result;
                 }
-                else
-                {
-                    sendMsgError();
-                    return session_result {session_status::proceed_wrong_header};
-                }
+            else if (header == msg_headers::client_msg)
+            {
+                uint8_t buff[MESSAGE_MAX_BUFFER];
+                    
+                auto sendLen = proceedMsg(msgBuff, len, buff);
+
+                if (send(this->_socket, buff, sendLen, 0) == -1)
+                    return session_result(session_status::proceed_send_fail, errno);
+                return session_result(session_status::proceed_msg_send);
+            }
+            else
+            {
+                sendMsgError();
+                return session_result(session_status::proceed_wrong_header);
             }
         }
         
-        return session_result {session_status::proceed_unknown_fd};
+        return session_result(session_status::proceed_unknown_fd);
     }
 
     bool UdpSession::timerReset()
     {
         this->isTimeout = false;
 
-        struct itimerspec timerspec;
+        itimerspec timerspec;
         timerspec.it_interval.tv_sec = 0;
         timerspec.it_interval.tv_nsec = 0;
         timerspec.it_value.tv_sec = WAIT_TIMEOUT_SEC;

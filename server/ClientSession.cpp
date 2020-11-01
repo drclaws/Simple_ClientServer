@@ -13,7 +13,7 @@
 
 namespace simpleApp
 {
-    ClientSession::ClientSession(int& epollfd, std::string name) : epollfd(epollfd), _name(name)
+    ClientSession::ClientSession(int epollfd, std::string name) : epollfd(epollfd), _name(name)
     {
         
     }

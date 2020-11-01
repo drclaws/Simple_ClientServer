@@ -8,6 +8,7 @@
 #include <netinet/in.h>
 #include <sys/epoll.h>
 #include <sys/eventfd.h>
+#include <strings.h>
 
 #else
 #error System is not supported
@@ -25,7 +26,7 @@
 
 namespace simpleApp
 {
-    int modeEpoll(int& epollfd, int epollop, int& fd, uint32_t events)
+    int modeEpoll(int epollfd, int epollop, int fd, void* ptr, uint32_t events)
     {
         if (events == 0)
         {
@@ -34,24 +35,24 @@ namespace simpleApp
         else
         {
             struct epoll_event stopEvent;
-            stopEvent.data.fd = fd;
+            stopEvent.data.ptr = ptr;
             stopEvent.events = events;
 
             return epoll_ctl(epollfd, epollop, fd, &stopEvent);
         }
     }
 
-    inline int addToEPoll(int& epollfd, int& fd, uint32_t events)
+    inline int addToEPoll(int epollfd, int fd, void* ptr, uint32_t events)
     {
-        return modeEpoll(epollfd, EPOLL_CTL_ADD, fd, events);
+        return modeEpoll(epollfd, EPOLL_CTL_ADD, fd, ptr, events);
     }
 
-    inline int removeFromEPoll(int& epollfd, int& fd)
+    inline int removeFromEPoll(int epollfd, int fd)
     {
-        return modeEpoll(epollfd, EPOLL_CTL_DEL, fd, 0);
+        return modeEpoll(epollfd, EPOLL_CTL_DEL, fd, 0, 0);
     }
 
-    inline socket_t createTcpSocket(uint16_t& port, int& err)
+    inline socket_t createTcpSocket(uint16_t port, int& err)
     {
         socket_t newSocket = socket(AF_INET, SOCK_STREAM, 0);
         if (newSocket == -1)
@@ -74,14 +75,23 @@ namespace simpleApp
             return -1;
         }
 
-        struct sockaddr_in serverTcpAddress;
+        sockaddr_in serverTcpAddress;
+        bzero(&serverTcpAddress, sizeof(serverTcpAddress));
         serverTcpAddress.sin_addr.s_addr = htonl(INADDR_ANY);
         serverTcpAddress.sin_port = htons(port);
         serverTcpAddress.sin_family = AF_INET;
         
-        if (bind(newSocket, (struct sockaddr *)&serverTcpAddress, sizeof(serverTcpAddress)) == -1)
+        if (bind(newSocket, (sockaddr *)&serverTcpAddress, sizeof(serverTcpAddress)) == -1)
         {
             err = errno;
+            close(newSocket);
+            return -1;
+        }
+
+        if (listen(newSocket, SOMAXCONN) == -1)
+        {
+            err = errno;
+            shutdown(newSocket, SHUT_RDWR);
             close(newSocket);
             return -1;
         }
@@ -114,12 +124,13 @@ namespace simpleApp
             return -1;
         }
 
-        struct sockaddr_in serverUdpAddress;
+        sockaddr_in serverUdpAddress;
+        bzero(&serverUdpAddress, sizeof(serverUdpAddress));
         serverUdpAddress.sin_addr.s_addr = htonl(INADDR_ANY);
         serverUdpAddress.sin_port = htons(port);
         serverUdpAddress.sin_family = AF_INET;
 
-        if (bind(newSocket, (struct sockaddr *)&serverUdpAddress, sizeof(serverUdpAddress)) == -1)
+        if (bind(newSocket, (sockaddr *)&serverUdpAddress, sizeof(serverUdpAddress)) == -1)
         {
             err = errno;
             close(newSocket);
@@ -145,26 +156,26 @@ namespace simpleApp
     {
         if(this->stopObject == -1)
         {
-            std::cout << "Stop event object is not initialized" << std::endl;
+            std::cout << "Stop event object is not initialized" << std::endl << std::flush;
             return -1;
         }
 
-        std::cout << "Starting server" << std::endl;
+        std::cout << "Starting server" << std::endl << std::flush;
 
         int err;
         socket_t masterTcpSocket = createTcpSocket(port, err);
 
         if (masterTcpSocket == -1)
-            std::cout << "TCP master socket initialization failed with code " << err << std::endl;
+            std::cout << "TCP master socket initialization failed with code " << err << std::endl << std::flush;
         
         socket_t masterUdpSocket = createUdpSocket(port, err);
 
         if (masterUdpSocket == -1)
-            std::cout << "UDP master socket initialization failed with code " << err << std::endl;
+            std::cout << "UDP master socket initialization failed with code " << err << std::endl << std::flush;
 
         if (masterTcpSocket == -1 && masterUdpSocket == -1)
         {
-            std::cout << "Every master sockets initialization failed" << std::endl;
+            std::cout << "Every master sockets initialization failed" << std::endl << std::flush;
             return -1;
         }
 
@@ -173,27 +184,27 @@ namespace simpleApp
 
         if (epollfd == -1)
         {
-            std::cout << "EPoll creation failed with code " << errno << std::endl;
+            std::cout << "EPoll creation failed with code " << errno << std::endl << std::flush;
             isFailed = true;
         }
-        else if(addToEPoll(epollfd, this->stopObject, EPOLLIN))
+        else if(addToEPoll(epollfd, this->stopObject, &this->stopObject, EPOLLIN) == -1)
         {
-            std::cout << "EPOLL_CTL_ADD of stop event object failed with code " << errno << std::endl;
+            std::cout << "EPOLL_CTL_ADD of stop event object failed with code " << errno << std::endl << std::flush;
             isFailed = true;
         }
         else
         {            
-            if (masterTcpSocket != -1 && addToEPoll(epollfd, masterTcpSocket, EPOLLIN | EPOLLET) == -1)
+            if (masterTcpSocket != -1 && addToEPoll(epollfd, masterTcpSocket, &masterTcpSocket, EPOLLIN | EPOLLET) == -1)
             {
-                std::cout << "EPOLL_CTL_ADD of TCP master socket failed with code " << errno << std::endl;
+                std::cout << "EPOLL_CTL_ADD of TCP master socket failed with code " << errno << std::endl << std::flush;
                 shutdown(masterTcpSocket, SHUT_RDWR);
                 close(masterTcpSocket);
                 masterTcpSocket = -1;
             }
 
-            if (masterUdpSocket != -1 && addToEPoll(epollfd, masterUdpSocket, EPOLLIN | EPOLLET) == -1)
+            if (masterUdpSocket != -1 && addToEPoll(epollfd, masterUdpSocket, &masterUdpSocket, EPOLLIN | EPOLLET) == -1)
             {
-                std::cout << "EPOLL_CTL_ADD of UDP master socket failed with code " << errno << std::endl;
+                std::cout << "EPOLL_CTL_ADD of UDP master socket failed with code " << errno << std::endl << std::flush;
                 shutdown(masterUdpSocket, SHUT_RDWR);
                 close(masterUdpSocket);
                 masterUdpSocket = -1;
@@ -201,29 +212,29 @@ namespace simpleApp
             
             if (masterTcpSocket == -1 && masterUdpSocket == -1) 
             {
-                std::cout << "There are no master sockets linked to epoll object" << std::endl;
+                std::cout << "There are no master sockets linked to epoll object" << std::endl << std::flush;
                 isFailed = true;
             }
             else
             {  
                 const size_t MAX_EVENTS_BUFFER = 10000;
-                struct epoll_event * events = static_cast<struct epoll_event *>(calloc(MAX_EVENTS_BUFFER, sizeof(struct epoll_event)));
+                epoll_event * events = static_cast<epoll_event *>(calloc(MAX_EVENTS_BUFFER, sizeof(epoll_event)));
                 
                 std::set<ClientSession*> slaveSocketsMap = std::set<ClientSession *>();
 
                 bool stopEventHappened = false;
 
-                auto initSession = [&slaveSocketsMap, masterTcpSocket, masterUdpSocket, &epollfd, port](struct epoll_event& event)
+                auto initSession = [&slaveSocketsMap, &masterTcpSocket, &masterUdpSocket, &epollfd, port](epoll_event& event)
                 {
                     ClientSession* clientSession;
                     session_result result;
 
-                    if (event.data.fd == masterTcpSocket)
+                    if (event.data.ptr == &masterTcpSocket)
                     {
                         clientSession = new TcpSession(epollfd);
                         result = clientSession->init(masterTcpSocket, port);
                     }
-                    else if (event.data.fd == masterUdpSocket)
+                    else if (event.data.ptr == &masterUdpSocket)
                     {
                         clientSession = new UdpSession(epollfd);
                         result = clientSession->init(masterUdpSocket, port);
@@ -237,27 +248,48 @@ namespace simpleApp
                     switch (result.status)
                     {
                     case session_status::init_success:
-                        toInsert = true;
-                        slaveSocketsMap.insert(clientSession);
-                        break;
+                        {
+                            toInsert = true;
+                            msg += "Session initialized";
+                            break;
+                        }
+                        
                     case session_status::init_socket_setup_fail:
-                        msg += "Socket initialization failed";
-                        break;
+                        {
+                            msg += "Socket initialization failed";
+                            break;
+                        }
+                        
                     case session_status::init_listener_fail:
-                        msg += "Message receiving from listener failed";
-                        break;
+                        {
+                            msg += "Message receiving from listener failed";
+                            break;
+                        }
+                        
                     case session_status::init_udp_wrong_header:
-                        msg += "Header check failed";
-                        break;
+                        {
+                            msg += "Header check failed";
+                            break;
+                        }
+                        
                     case session_status::init_udp_wrong_length:
-                        msg += "Message length check failed";
-                        break;
+                        {
+                            msg += "Message length check failed";
+                            break;
+                        }
+                        
                     case session_status::init_udp_timer_fail:
-                        msg += "Timeout timer setup failed";
-                        break;
+                        {
+                            msg += "Timeout timer setup failed";
+                            break;
+                        }
+
                     default:
-                        msg += "Unknown status returned";
-                        break;
+                        {
+                            msg += "Unknown status returned";
+                            break;
+                        }
+
                     }
                     
                     if (result.err != 0)
@@ -276,9 +308,9 @@ namespace simpleApp
                 {
                     std::set<ClientSession*> slavesForRemove = std::set<ClientSession*>();
                     int N = epoll_wait(epollfd, events, MAX_EVENTS_BUFFER, -1);
-                    for (size_t i = 0; i < N; i++)
+                    for (size_t i = 0; static_cast<int>(i) < N; i++)
                     {
-                        if (events[i].data.fd == this->stopObject)
+                        if (events[i].data.ptr == &this->stopObject)
                         {
                             eventfd_t decrement = 1;
                             
@@ -298,7 +330,7 @@ namespace simpleApp
                                 removeFromEPoll(epollfd, masterUdpSocket);
                             }
                             
-                            std::cout << msg << std::endl;
+                            std::cout << msg << std::endl << std::flush;
 
                             stopEventHappened = true;
                         }
@@ -306,80 +338,105 @@ namespace simpleApp
                         {
                             continue;
                         }
-                        else if (events[i].data.ptr != nullptr)
-                        {
-                            auto clientSession = reinterpret_cast<ClientSession*>(events[i].data.ptr);
-                            auto result = clientSession->proceed(events[i]);
-                            std::string msg = "";
-
-                            switch (result.status)
-                            {
-                            case session_status::proceed_msg_send:
-                            case session_status::proceed_udp_connup:
-                                slavesForRemove.erase(clientSession);
-                                break;
-
-                            case session_status::proceed_disconnect:
-                                slavesForRemove.insert(clientSession);
-                                msg = std::string("Session has been closed by client");
-                                break;
-                            case session_status::proceed_udp_timeout:
-                                slavesForRemove.insert(clientSession);
-                                msg = std::string("Timeout triggered");
-                                break;
-                            case session_status::proceed_udp_client_timeout:
-                                slavesForRemove.insert(clientSession);
-                                msg = std::string("Session has been closed by client because of timeout");
-                                break;
-                            case session_status::proceed_udp_timer_fail:
-                                slavesForRemove.insert(clientSession);
-                                msg = std::string("Session has been closed because of timer failure");
-                                break;
-
-                            case session_status::proceed_recv_fail:
-                                msg = std::string("RECV failed");
-                                break;
-                            case session_status::proceed_send_fail:
-                                msg = std::string("SEND failed");
-                                break;
-                            case session_status::proceed_wrong_header:
-                                msg = std::string("Received message with wrong header");
-                                break;
-                            case session_status::proceed_unknown_fd:
-                                msg = std::string("Unknown fd connected");
-                                break;
-
-                            case session_status::proceed_tcp_wrong_size:
-                                msg = std::string("Receive message has wrong size");
-                                break;
-
-                            case session_status::proceed_udp_false_timeout:
-                            case session_status::proceed_udp_socket_was_closed:
-                                break;
-                            
-                            default:
-                                msg = std::string("Unknown error");
-                                break;
-                            }
-                            
-                            if (result.err != 0)
-                                msg += std::string(" Returned code: ") + std::to_string(result.err);
-                            
-                            if (msg != std::string(""))
-                            {
-                                std::cout << clientSession->getName() << ". " << msg << std::endl;
-                            }
-                                
-                        }
                         else
                         {
-                            std::string msg = "Found unknown decriptor. ";
-                            if (removeFromEPoll(epollfd, events[i].data.fd) == -1)
-                                msg += std::string("Removal failed with code ") + std::to_string(errno);
+                            auto clientSession = reinterpret_cast<ClientSession*>(events[i].data.ptr);
+                            if(slaveSocketsMap.find(clientSession) == slaveSocketsMap.end())
+                            {
+                                std::cout << "Unknown event happened" << std::endl;
+                            }
                             else
-                                msg += "Removed from epoll successfully";
+                            {
+                                auto result = clientSession->proceed();
+                                std::string msg = "";
 
-                            std::cout << msg << std::endl;
+                                switch (result.status)
+                                {
+                                case session_status::proceed_msg_send:
+                                case session_status::proceed_udp_connup:
+                                    {
+                                        slavesForRemove.erase(clientSession);
+                                        break;
+                                    }
+
+                                case session_status::proceed_disconnect:
+                                    {
+                                        slavesForRemove.insert(clientSession);
+                                        msg = std::string("Session has been closed by client");
+                                        break;
+                                    }
+
+                                case session_status::proceed_udp_timeout:
+                                    {
+                                        slavesForRemove.insert(clientSession);
+                                        msg = std::string("Timeout triggered");
+                                        break;
+                                    }
+
+                                case session_status::proceed_udp_client_timeout:
+                                    {
+                                        slavesForRemove.insert(clientSession);
+                                        msg = std::string("Session has been closed by client because of timeout");
+                                        break;
+                                    }
+
+                                case session_status::proceed_udp_timer_fail:
+                                    {
+                                        slavesForRemove.insert(clientSession);
+                                        msg = std::string("Session has been closed because of timer failure");
+                                        break;
+                                    }
+
+                                case session_status::proceed_recv_fail:
+                                    {
+                                        msg = std::string("RECV failed");
+                                        break;
+                                    }
+
+                                case session_status::proceed_send_fail:
+                                    {
+                                        msg = std::string("SEND failed");
+                                        break;
+                                    }
+
+                                case session_status::proceed_wrong_header:
+                                    {
+                                        msg = std::string("Received message with wrong header");
+                                        break;
+                                    }
+
+                                case session_status::proceed_unknown_fd:
+                                    {
+                                        msg = std::string("Unknown fd connected");
+                                        break;
+                                    }
+
+                                case session_status::proceed_tcp_wrong_size:
+                                    {
+                                        msg = std::string("Receive message has wrong size");
+                                        break;
+                                    }
+
+                                case session_status::proceed_udp_false_timeout:
+                                case session_status::proceed_udp_socket_was_closed:
+                                    break;
+                                
+                                default:
+                                    {
+                                        msg = std::string("Unknown error");
+                                        break;
+                                    }
+                                    
+                                }
+                                
+                                if (result.err != 0)
+                                    msg += std::string(" Returned code: ") + std::to_string(result.err);
+                                
+                                if (msg != std::string(""))
+                                {
+                                    std::cout << clientSession->getName() << ". " << msg << std::endl;
+                                }
+                            }
                         }
                     }
 
