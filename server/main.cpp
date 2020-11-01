@@ -3,6 +3,13 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+#include <stdio.h> 
+#include <termios.h> 
+#include <time.h> 
+#include <sys/ioctl.h>
+
+#include <cstring>
+
 #include "Server.hpp"
 
 simpleApp::Server server = simpleApp::Server();
@@ -17,6 +24,16 @@ void onExit(int s)
 
 int main(int argc, char** argv)
 {
+    // Hide console input
+    termios orig_term_attr; 
+    termios new_term_attr;
+    tcgetattr(fileno(stdin), &orig_term_attr); 
+    memcpy(&new_term_attr, &orig_term_attr, sizeof(termios)); 
+    new_term_attr.c_lflag &= ~(ECHO | ICANON); 
+    new_term_attr.c_cc[VTIME] = 0; 
+    new_term_attr.c_cc[VMIN] = 0;
+    tcsetattr(fileno(stdin), TCSANOW, &new_term_attr);
+
     std::cout << "Welcome to the SimpleServer!" << std::endl <<
         "For exit press Ctrl+C" << std::endl;
             
@@ -39,5 +56,5 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    return server.serverLoop(static_cast<uint16_t>(35831));
+    return server.serverLoop(static_cast<uint16_t>(35830));
 }

@@ -41,10 +41,9 @@ namespace simpleApp
 
     std::string addressToString(sockaddr_in& address)
     {
-        uint32_t addressConverted = ntohl(address.sin_addr.s_addr);
         auto portConverted = ntohs(address.sin_port);
 
-        uint8_t* addressByBytes = reinterpret_cast<uint8_t*>(&addressConverted);
+        uint8_t* addressByBytes = reinterpret_cast<uint8_t*>(&address.sin_addr.s_addr);
 
         return std::to_string(static_cast<int>(addressByBytes[0])) + std::string(".") +
             std::to_string(static_cast<int>(addressByBytes[1])) + std::string(".") +
