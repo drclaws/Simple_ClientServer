@@ -139,7 +139,7 @@ namespace simpleApp
                     switch (currentState)
                     {
                     case console_state::msg_input:
-                        /* code */
+                        
                         break;
                     
                     default:

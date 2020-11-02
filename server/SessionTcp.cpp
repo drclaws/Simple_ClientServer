@@ -89,11 +89,11 @@ namespace simpleApp
             return session_result(session_status::proceed_wrong_header);
         }
         
-        uint8_t buff[MESSAGE_MAX_BUFFER];
+        char buff[MESSAGE_MAX_BUFFER - sizeof(msg_headers)];
                     
-        auto sendLen = proceedMsg(buffer, len, buff);
+        auto sendLen = proceedMsg(reinterpret_cast<char*>(buffer + static_cast<ptrdiff_t>(sizeof(msg_headers))), len - sizeof(msg_headers), buff);
 
-        if (send(this->_socket, buff, sendLen, 0) == -1)
+        if (this->sendMessage(msg_headers::server_msg, buff, sendLen) == -1)
             return session_result(session_status::proceed_send_fail, errno);
 
         return session_result(session_status::proceed_msg_send);

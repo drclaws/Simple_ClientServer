@@ -5,5 +5,5 @@
 
 namespace simpleApp
 {
-    size_t proceedMsg(uint8_t* in, size_t len, uint8_t* out);
+    int proceedMsg(char* in, size_t len, char* out);
 }

@@ -2,22 +2,38 @@
 
 #include <string>
 #include <cstring>
+#include <regex>
 
 #include <simple_lib/common.h>
 
 namespace simpleApp
 {
-    size_t proceedMsg(uint8_t* in, size_t len, uint8_t* out)
+    int proceedMsg(char* in, size_t len, char* out)
     {
-        // TODO replace this with required logic
-        const msg_headers buffHeader = msg_headers::server_msg;
-        const char* msg = "DELIVERED";
-        const size_t size = sizeof("DELIVERED");
+        auto msgReceived = std::string(in, len);
+        bool isFound = false;
+        unsigned long value = 0;
 
-        
-        std::memcpy(out, &buffHeader, sizeof(buffHeader));
-        std::memcpy(out + static_cast<ptrdiff_t>(sizeof(buffHeader)), msg, size);
+        const std::regex r("[0123456789]+");
 
-        return sizeof(buffHeader) + size;
+        for (std::sregex_iterator it = std::sregex_iterator(msgReceived.begin(), msgReceived.end(), r); 
+                it != std::sregex_iterator(); it++)
+        {
+            isFound = true;
+            std::smatch match;
+            match = *it;
+            value += std::stoi(match.str());
+        }
+        if (isFound)
+        {
+            auto line = std::to_string(value);
+            std::memcpy(out, line.c_str(), line.size());
+            return line.size();
+        }
+        else
+        {
+            std::memcpy(out, in, len);
+            return len;
+        }
     }
 }
