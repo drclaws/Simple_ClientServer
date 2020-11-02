@@ -79,15 +79,13 @@ namespace simpleApp
         }
         else if (static_cast<size_t>(len) <= sizeof(msg_headers))
         {
-            const msg_headers buff = msg_headers::incorrect_msg;
-            send(this->_socket, &buff, sizeof(buff), 0);
+            this->sendMessage(msg_headers::incorrect_msg);
             return session_result(session_status::proceed_tcp_wrong_size);
         }
         
         if(*reinterpret_cast<msg_headers*>(buffer) != msg_headers::client_msg)
         {
-            const msg_headers buff = msg_headers::incorrect_msg;
-            send(this->_socket, &buff, sizeof(buff), 0);
+            this->sendMessage(msg_headers::incorrect_msg);
             return session_result(session_status::proceed_wrong_header);
         }
         

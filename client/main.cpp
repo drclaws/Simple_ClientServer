@@ -2,7 +2,12 @@
 
 #include <signal.h>
 
+#include <unistd.h>
+
+#include <simple_lib/common.h>
+
 #include "MainConsole.hpp"
+
 
 simpleApp::MainConsole console = simpleApp::MainConsole();
 
@@ -17,6 +22,12 @@ void onBreak(int s)
 int main(int argc, char** argv)
 {
     std::cout << "Welcome to the Simple Client! For exit press Ctrl+C" << std::endl;
+
+    if (simpleApp::set_nonblock(STDIN_FILENO) == -1)
+    {
+        std::cout << "Console input reconfigure failed with code " << errno << std::endl;
+        return -1;
+    }
 
     int err = console.initBreak();
     if (err != 0)

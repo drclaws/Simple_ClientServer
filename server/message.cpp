@@ -14,6 +14,7 @@ namespace simpleApp
         const char* msg = "DELIVERED";
         const size_t size = sizeof("DELIVERED");
 
+        
         std::memcpy(out, &buffHeader, sizeof(buffHeader));
         std::memcpy(out + static_cast<ptrdiff_t>(sizeof(buffHeader)), msg, size);
 

@@ -30,13 +30,11 @@ namespace simpleApp
         {
             if (this->isTimeout)
             {
-                const uint8_t buff = static_cast<const uint8_t>(msg_headers::server_timeout);
-                send(this->_socket, &buff, sizeof(buff), 0);
+                this->sendMessage(msg_headers::server_timeout);
             }
             else 
             {
-                const uint8_t buff = static_cast<const uint8_t>(msg_headers::server_conndown);
-                send(this->_socket, &buff, sizeof(buff), 0);
+                this->sendMessage(msg_headers::server_conndown);
             }
         }
     }
@@ -158,8 +156,7 @@ namespace simpleApp
 
         if(result.status == session_status::init_success)
         {
-            const uint8_t header = static_cast<const uint8_t>(msg_headers::accept_connstart);
-            send(this->_socket, &header, sizeof(header), 0);
+            this->sendMessage(msg_headers::accept_connstart);
         }
         else
         {
@@ -182,8 +179,7 @@ namespace simpleApp
         {
             auto result = session_result(session_status::proceed_udp_timer_fail, errno);
 
-            const msg_headers header = msg_headers::server_session_err;
-            send(this->_socket, &header, sizeof(header), 0);
+            this->sendMessage(msg_headers::server_session_err);
 
             this->sessionClose();
 
@@ -199,19 +195,13 @@ namespace simpleApp
         uint8_t msgBuff[MESSAGE_MAX_BUFFER];
         auto len = recv(this->_socket, msgBuff, MESSAGE_MAX_BUFFER, 0);
 
-        auto sendMsgError = [this]()
-        {
-            const msg_headers header = msg_headers::incorrect_msg;
-            send(this->_socket, &header, sizeof(msg_headers), 0);
-        };
-
         if (len == -1 || static_cast<size_t>(len) < sizeof(msg_headers))
         {
             return session_result(session_status::proceed_recv_fail, errno);
         }
         if (static_cast<size_t>(len) < sizeof(msg_headers))
         {
-            sendMsgError();
+            this->sendMessage(msg_headers::incorrect_msg);
 
             return session_result(session_status::init_udp_wrong_length);
         }
@@ -221,7 +211,7 @@ namespace simpleApp
 
             if (!(static_cast<header_base_type>(header) & static_cast<header_base_type>(msg_headers::sender_client)))
             {
-                sendMsgError();
+                this->sendMessage(msg_headers::incorrect_msg);
                 return session_result(session_status::proceed_wrong_header);
             }
                 
@@ -232,9 +222,8 @@ namespace simpleApp
                 {
                 case msg_headers::client_connup:
                     {
-                        const msg_headers connupBuff = msg_headers::server_connup;
                         this->timerReset();
-                        if(send(this->_socket, &connupBuff, sizeof(connupBuff), 0) == -1)
+                        if(this->sendMessage(msg_headers::server_connup) == -1)
                             result = session_result(session_status::proceed_send_fail, errno);
                         else
                             result = session_result(session_status::proceed_udp_connup);
@@ -257,7 +246,7 @@ namespace simpleApp
                         
                 default:
                     {
-                        sendMsgError();
+                        this->sendMessage(msg_headers::incorrect_msg);
                         result = session_result(session_status::proceed_wrong_header);
                         break;
                     }
@@ -277,7 +266,7 @@ namespace simpleApp
             }
             else
             {
-                sendMsgError();
+                this->sendMessage(msg_headers::incorrect_msg);
                 return session_result(session_status::proceed_wrong_header);
             }
         }

@@ -184,7 +184,7 @@ namespace simpleApp
         }
         else if(addToEPoll(epollfd, this->stopEventFd, &this->stopEventFd, EPOLLIN) == -1)
         {
-            std::cout << "EPOLL_CTL_ADD of stop event object failed with code " << errno << std::endl << std::flush;
+            std::cout << "EPOLL_CTL_ADD of stop event fd failed with code " << errno << std::endl << std::flush;
             isFailed = true;
         }
         else

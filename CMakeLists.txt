@@ -29,6 +29,8 @@ add_executable(${PROJECT_NAME} client/main.cpp)
 
 target_sources(${PROJECT_NAME} PRIVATE client/MainConsole.cpp client/MainConsole.hpp)
 target_sources(${PROJECT_NAME} PRIVATE client/SessionClient.cpp client/SessionClient.hpp)
+target_sources(${PROJECT_NAME} PRIVATE client/SessionTcp.cpp client/SessionTcp.hpp)
+target_sources(${PROJECT_NAME} PRIVATE client/SessionUdp.cpp client/SessionUdp.hpp)
 
 target_include_directories(${PROJECT_NAME} PUBLIC ${INCLUDE_PATH})
 target_link_libraries(${PROJECT_NAME} simple_lib)

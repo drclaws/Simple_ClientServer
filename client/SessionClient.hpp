@@ -1,7 +1,13 @@
 #pragma once
 
+#include <string>
+
 #include <simple_lib/common.h>
 #include <simple_lib/Session.hpp>
+
+#include "session_result.h"
+
+#include <netinet/in.h>
 
 namespace simpleApp
 {
@@ -10,10 +16,14 @@ namespace simpleApp
     public:
         virtual ~SessionClient();
 
-        virtual int init() = 0;
-        virtual int proceed(int fd) = 0;
+        virtual session_result init(std::string address) = 0;
+        virtual session_result proceed(int fd, char* sendMsg = nullptr, size_t msgSize = 0) = 0;
         
     protected:
         SessionClient(int epollfd);
+        
+        static in_addr_t toInetAddress(std::string addressLine);
+        
+        session_result connectSocket(std::string address, int sockType);
     };
 }

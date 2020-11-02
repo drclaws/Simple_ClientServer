@@ -16,5 +16,6 @@ namespace simpleApp
         Session(int epollfd);
 
         void sessionClose();
+        int sendMessage(msg_headers header, char* msg = nullptr, size_t msgSize = 0);
     };
 }

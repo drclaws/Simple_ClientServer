@@ -1,5 +1,7 @@
 #include "../include/simple_lib/Session.hpp"
 
+#include <cstring>
+
 #include <sys/epoll.h>
 #include <sys/socket.h>
 
@@ -27,4 +29,22 @@ namespace simpleApp
             this->_socket = -1;
         }
     }
+
+    int Session::sendMessage(msg_headers header, char* msg, size_t msgSize)
+    {
+        uint8_t buffer[MESSAGE_MAX_BUFFER];
+        
+        std::memcpy(buffer, &header, sizeof(header));
+        
+        if (msg != nullptr && msgSize > 0)
+        {
+            std::memcpy(buffer + static_cast<ptrdiff_t>(sizeof(header)), msg, msgSize);
+            return send(this->_socket, buffer, sizeof(header) + msgSize, 0);
+        }
+        else
+        {
+            return send(this->_socket, buffer, sizeof(header), 0);
+        }
+    }
+    
 }
