@@ -371,7 +371,7 @@ namespace simpleApp
                                         break;
                                     }
 
-                                case session_status::proceed_udp_timeout:
+                                case session_status::proceed_recv_timeout:
                                     {
                                         slavesForRemove.insert(clientSession);
                                         msg = std::string("Timeout triggered");

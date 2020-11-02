@@ -25,7 +25,7 @@ namespace simpleApp
         proceed_tcp_wrong_size,
 
         proceed_udp_timer_fail,
-        proceed_udp_timeout,
+        proceed_recv_timeout,
         proceed_udp_false_timeout,
         proceed_udp_client_timeout,
         proceed_udp_socket_was_closed,

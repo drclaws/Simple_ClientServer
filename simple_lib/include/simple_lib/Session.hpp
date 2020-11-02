@@ -11,11 +11,10 @@ namespace simpleApp
 
     protected:
         socket_t _socket = -1;
-        int epollfd;
 
-        Session(int epollfd);
+        Session();
 
-        void sessionClose();
+        virtual void sessionClose();
         int sendMessage(msg_headers header, char* msg = nullptr, size_t msgSize = 0);
     };
 }

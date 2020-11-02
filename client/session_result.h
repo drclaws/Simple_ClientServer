@@ -4,29 +4,36 @@ namespace simpleApp
 {
     enum class session_status
     {
+        // INIT
+
         init_success,
         init_not_address,
         init_socket_fail,
         init_connection_fail,
-        init_epoll_add_fail,
         
-        init_udp_conn_wait,
         init_udp_send_up_fail,
-        init_udp_timer_fail,
+        init_udp_recv_up_fail,
         
-        proceed_msg_recv,
-        proceed_msg_recv_fail,
-        proceed_msg_wrong_length,
+        // PROCEED
+
         proceed_disconnect,
-        proceed_msg_send,
+        proceed_server_timeout,
+        proceed_server_error,
+
+        proceed_msg,
+
         proceed_msg_send_fail,
-        proceed_msg_empty,
-        proceed_msg_wrong_header,
+        proceed_msg_recv_fail,
+        
+        recv_wrong_length,
+        recv_wrong_header,
+        
+        // CONNUP
 
-        proceed_udp_connected,
-        proceed_udp_timeout,
+        connup_up,
+        connup_timeout,
+        connup_not_req,
 
-        udp_timer_set_fail,
         unknown_status
     };
 
@@ -41,7 +48,7 @@ namespace simpleApp
 
         }
 
-        session_result(session_status status, std::string recvMsg) : status(status), err(0), recvMsg(recvMsg)
+        session_result(std::string recvMsg) : status(session_status::proceed_msg), err(0), recvMsg(recvMsg)
         {
 
         }

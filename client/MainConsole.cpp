@@ -3,7 +3,7 @@
 #include <iostream>
 
 #include <sys/eventfd.h>
-#include <sys/epoll.h>
+#include <sys/select.h>
 
 #include <errno.h>
 #include <unistd.h>
@@ -47,226 +47,135 @@ namespace simpleApp
         return 0;
     }
 
-    void cleanStdin()
-    {
-        // TODO
-    }
-
-    int getFromStdin(char* buffer)
-    {
-        // TODO
-        return 0;
-    }
-
     int MainConsole::consoleLoop()
     {
-        int epollfd = epoll_create1(0);
-        
-        if (epollfd == -1)
+        if (this->breakEventFd == -1)
         {
-            std::cout << "EPoll creation failed with code " << errno << std::endl << std::flush;
-            return -1;
-        }
-
-        epoll_event setupEvent;
-        setupEvent.data.fd = this->breakEventFd;
-        setupEvent.events = EPOLLIN | EPOLLET;
-        if (epoll_ctl(epollfd, EPOLL_CTL_ADD, this->breakEventFd, &setupEvent) == -1)
-        {
-            std::cout << "EPOLL_CTL_ADD of break event fd failed with code " << errno << std::endl << std::flush;
-            close(epollfd);
+            std::cout << "Break event is not set" << std::endl;
             return -1;
         }
         
-        setupEvent.data.fd = STDIN_FILENO;
-        setupEvent.events = EPOLLIN | EPOLLET;
-        if (epoll_ctl(epollfd, EPOLL_CTL_ADD, STDIN_FILENO, &setupEvent) == -1)
-        {
-            std::cout << "EPOLL_CTL_ADD of break event fd failed with code " << errno << std::endl << std::flush;
-            epoll_ctl(epollfd, EPOLL_CTL_DEL, this->breakEventFd, nullptr);
-            close(epollfd);
-            return -1;
-        }
+        timeval tv;
+        
+        tv.tv_sec = 5;
+        tv.tv_usec = 0;
 
         bool isExit = false;
-        console_state currentState = console_state::protocol_selection;
-        SessionClient* currentSession = nullptr;
+        SessionClient * currentSession = nullptr;
+        console_state currentState;
 
-        std::cout << "Select protocol: [u]dp or [t]cp - or press Ctrl+C for exit" << std::endl << std::flush;
-        std::cout << " >> " << std::flush;
+        auto switchState = [&currentState, &currentSession, &isExit](console_state newState)
+        {
+            // TODO
+        };
+
+        switchState(console_state::protocol_selection);
 
         while (!isExit)
         {
-            const size_t eventsSize = 4;
-            epoll_event events[eventsSize];
+            fd_set fd_in;
+            FD_ZERO(&fd_in);
 
-            console_state nextState = console_state::none;
+            FD_SET(this->breakEventFd, &fd_in);
+            FD_SET(STDIN_FILENO, &fd_in);
 
-            int len = epoll_wait(epollfd, events, eventsSize, -1);
-            for(size_t i = 0; static_cast<int>(i) < len; i++)
+            int largerFd = this->breakEventFd > STDIN_FILENO ? this->breakEventFd : STDIN_FILENO;
+            if (currentSession != nullptr)
             {
-                if (events[i].data.fd == this->breakEventFd)
+                auto sessionSocket = currentSession->getSocket();
+                largerFd = sessionSocket > largerFd ? sessionSocket : largerFd;
+            }
+                
+            int selectResult = select(largerFd + 1, &fd_in, 0, 0, &tv);
+
+            if (selectResult == -1)
+            {
+                std::cout << "Select failed with code " << errno;
+                if (currentSession != nullptr)
+                    delete currentSession;
+                return -1;
+            }
+
+            if (currentSession != nullptr)
+            {
+                if (selectResult == 0)
                 {
-                    switch (currentState)
+                    auto result = currentSession->sendConnup();
+                    if (result.status != session_status::connup_up && result.status != session_status::connup_not_req)
                     {
-                    case console_state::protocol_selection:
-                        nextState = console_state::none;
-                        isExit = true;
-                        break;
-                    
-                    case console_state::msg_input:
-                    case console_state::wait_result:
-                    case console_state::connect_wait:
-                        delete currentSession;
-                        currentSession = nullptr;
-                    case console_state::address_input:
-                        nextState = console_state::protocol_selection;
-                        break;
-                    default:
-                        break;
-                    }
-                    
-                    cleanStdin();
-
-                    break;
-                }
-
-                // Non-console event and have session
-                if (events[i].data.fd != STDIN_FILENO && currentSession != nullptr)
-                {
-                    //cleanStdin();
-                    
-                    switch (currentState)
-                    {
-                    case console_state::msg_input:
-                        
-                        break;
-                    
-                    default:
-                        break;
-                    }
-                    // TODO
-                }
-
-                // Console input
-                if (events[i].data.fd == STDIN_FILENO)
-                {
-                    char buffer[MESSAGE_MAX_BUFFER - sizeof(msg_headers)];
-                    auto len = getFromStdin(buffer);
-                    
-                    if (len < 1)
-                    {
-                        cleanStdin();
-                        break;
-                    }
-
-                    switch (currentState)
-                    {
-                    case console_state::protocol_selection:
-                        if (buffer[0] == 't')
-                        {
-                            currentSession = new SessionTcp(epollfd);
-                            nextState = console_state::address_input;
-                        }
-                        else if (buffer[0] == 'u')
-                        {
-                            currentSession = new SessionUdp(epollfd);
-                            nextState = console_state::address_input;
-                        }
+                        if (result.status == session_status::connup_timeout)
+                            std::cout << std::endl << "Server does not response";
                         else
-                        {
-                            std::cout << "Incorrect choice" << std::endl << std::flush;
-                        }
-                        break;
+                            std::cout << std::endl << "Unknown error";
+                        
+                        if (result.err != 0)
+                            std::cout << " with code " << result.err << std::endl << std::flush;
+                        else
+                            std::cout << std::endl << std::flush;
+
+                        switchState(console_state::address_input);
+
+                        continue;
+                    }
+                }
+                
+                // Something came to socket without request
+                if (FD_ISSET(currentSession->getSocket(), &fd_in))
+                {
+                    auto result = currentSession->proceed();
                     
-                    case console_state::address_input:
-                        {
-                            auto result = currentSession->init(std::string(buffer, len));
-                            switch (result.status)
-                            {
-                            case session_status::init_success:
-                                nextState = console_state::msg_input;
-                                break;
-                            
-                            case session_status::init_udp_conn_wait:
-                                nextState = console_state::connect_wait;
-                                break;
-                            
-                            default:
-                                std::cout << "Connection error" << std::endl << std::flush;
-                                delete currentSession;
-                                currentSession = nullptr;
-                                nextState = console_state::protocol_selection;
-                                break;
-                            }
-                            break;
-                        }
-                    case console_state::msg_input:
-                        {
-                            auto result = currentSession->proceed(events[i].data.fd, buffer, len);
-                            switch (result.status)
-                            {
-                            case session_status::proceed_msg_send:
-                                
-                                break;
-                            
-                            default:
-                                break;
-                            }
-                        }
+                    switch (result.status)
+                    {
+                    case session_status::proceed_msg_recv_fail:
+                        std::cout << "Message receiving failed";
+                        break;
+                    case session_status::proceed_disconnect:
+                        std::cout << "Session shutdown by server";
+                        break;
+                    case session_status::recv_wrong_length:
+                        std::cout << "Message with wrong length received";
+                        break;
+                    case session_status::proceed_server_error:
+                        std::cout << "Server error returned";
+                        break;
+                    case session_status::proceed_server_timeout:
+                        std::cout << "Received server timeout";
+                        break;
                     default:
+                        std::cout << "Unknown error";
                         break;
                     }
+                     
+                    if (result.err != 0)
+                        std::cout << " with code " << result.err << std::endl << std::flush;
+                    else
+                        std::cout << std::endl << std::flush;
+                    
+                    switchState(console_state::protocol_selection);
 
-                    cleanStdin();
-                    break;
+                    continue;
                 }
             }
-            
-            // Switch state
-            switch (nextState)
+            else if (selectResult == 0)
             {
-            case console_state::protocol_selection:
-                {
-                    std::cout << "Select protocol: [u]dp or [t]cp - or press Ctrl+C for exit" << std::endl << std::flush;
-                    break;
-                }
-            
-            case console_state::address_input:
-                {
-                    std::cout << "Input IP address of server. To change protocol press Ctrl+C" << std::endl << std::flush;
-                    break;
-                }
-
-            case console_state::msg_input:
-                {
-                    std::cout << "Connected to server. For disconnect press Ctrl+C" << std::endl << std::flush;
-                    break;
-                }
-            default:
-                break;
+                continue;
             }
 
-            if (nextState != console_state::none)
-                currentState = nextState;
-
-            switch (currentState)
+            if (FD_ISSET(this->breakEventFd, &fd_in))
             {
-            case console_state::protocol_selection:
-            case console_state::address_input:
-            case console_state::msg_input:
-                std::cout << " >> " << std::endl;
-                break;
-            default:
-                break;
+                if (currentState == console_state::protocol_selection)
+                    isExit = true;
+                else
+                    switchState(console_state::protocol_selection);
+                
+                continue;
+            }
+
+            if (FD_ISSET(STDIN_FILENO, &fd_in))
+            {
+                // TODO
             }
         }
-
-        if (currentSession != nullptr)
-            delete currentSession;
-
-        epoll_ctl(epollfd, EPOLL_CTL_DEL, this->breakEventFd, 0);
-        close(epollfd);
 
         return 0;
     }

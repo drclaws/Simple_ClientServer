@@ -44,6 +44,12 @@ namespace simpleApp
             return session_result(session_status::init_socket_setup_fail, err);
         }
 
+        timeval tv;
+        tv.tv_sec = WAIT_TIMEOUT_SEC;
+        tv.tv_usec = 0;
+        setsockopt(this->_socket, SOL_SOCKET, SO_RCVTIMEO, (char*) &tv, sizeof(tv));
+        setsockopt(this->_socket, SOL_SOCKET, SO_SNDTIMEO, (char*) &tv, sizeof(tv));
+
         epoll_event epoll_event_setup;
         epoll_event_setup.data.ptr = this;
         epoll_event_setup.events = EPOLLIN;
@@ -56,12 +62,6 @@ namespace simpleApp
             this->_socket = -1;
             return session_result(session_status::init_socket_setup_fail, err);
         }
-
-        timeval tv;
-        tv.tv_sec = 16;
-        tv.tv_usec = 0;
-        setsockopt(this->_socket, SOL_SOCKET, SO_RCVTIMEO, (char*) &tv, sizeof(tv));
-        setsockopt(this->_socket, SOL_SOCKET, SO_SNDTIMEO, (char*) &tv, sizeof(tv));
 
         return session_result(session_status::init_success);
     }

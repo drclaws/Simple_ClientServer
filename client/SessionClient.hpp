@@ -16,14 +16,14 @@ namespace simpleApp
     public:
         virtual ~SessionClient();
 
-        virtual session_result init(std::string address) = 0;
-        virtual session_result proceed(int fd, char* sendMsg = nullptr, size_t msgSize = 0) = 0;
+        virtual session_result init(in_addr_t address) = 0;
+        session_result proceed(char* sendMsg = nullptr, size_t msgSize = 0);
+        virtual session_result sendConnup();
+        socket_t getSocket();
         
     protected:
-        SessionClient(int epollfd);
+        SessionClient();
         
-        static in_addr_t toInetAddress(std::string addressLine);
-        
-        session_result connectSocket(std::string address, int sockType);
+        session_result connectSocket(in_addr_t address, int sockType);
     };
 }

@@ -10,11 +10,11 @@ namespace simpleApp
     
     const uint16_t PUBLIC_PORT = static_cast<uint16_t>(35830);
 
-    typedef uint8_t header_base_type;
+    typedef uint8_t msg_headers_t;
 
     /// Message headers.
     /// TCP-sessions use only "Data proceeding" group.
-    enum class msg_headers : header_base_type 
+    enum class msg_headers : msg_headers_t 
     {
         // Header flags
         error =         0x80,

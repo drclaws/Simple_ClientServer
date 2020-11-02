@@ -38,7 +38,7 @@ namespace simpleApp
             }
         }
     }
-
+    
     session_result SessionUdp::init(socket_t masterSocket)
     {
         const size_t buffCheckLength = sizeof(msg_headers) + 1;
@@ -189,7 +189,7 @@ namespace simpleApp
         if (timerData.it_value.tv_sec == 0 && timerData.it_value.tv_nsec == 0)
         {
             this->isTimeout = true;
-            return session_result(session_status::proceed_udp_timeout);
+            return session_result(session_status::proceed_recv_timeout);
         }
         
         uint8_t msgBuff[MESSAGE_MAX_BUFFER];
@@ -209,7 +209,7 @@ namespace simpleApp
         {
             auto header = *reinterpret_cast<msg_headers*>(msgBuff);
 
-            if (!(static_cast<header_base_type>(header) & static_cast<header_base_type>(msg_headers::sender_client)))
+            if (!(static_cast<msg_headers_t>(header) & static_cast<msg_headers_t>(msg_headers::sender_client)))
             {
                 this->sendMessage(msg_headers::incorrect_msg);
                 return session_result(session_status::proceed_wrong_header);

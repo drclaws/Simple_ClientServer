@@ -25,8 +25,11 @@ namespace simpleApp
         
     protected:
         std::string _name;
+        int epollfd;
 
         SessionServer(int epollfd, std::string name = "");
+
+        void sessionClose() override;
     };
 
     std::string addressToString(sockaddr_in& address);

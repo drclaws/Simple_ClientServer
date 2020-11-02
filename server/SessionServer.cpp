@@ -7,7 +7,7 @@
 
 namespace simpleApp
 {
-    SessionServer::SessionServer(int epollfd, std::string name) : Session(epollfd), _name(name)
+    SessionServer::SessionServer(int epollfd, std::string name) : epollfd(epollfd), _name(name), Session() 
     {
         
     }
@@ -20,6 +20,15 @@ namespace simpleApp
     std::string SessionServer::getName()
     {
         return this->_name;
+    }
+
+    void SessionServer::sessionClose()
+    {
+        if (this->_socket != -1)
+        {
+            epoll_ctl(this->epollfd, EPOLL_CTL_DEL, this->_socket, 0);
+        }
+        Session::sessionClose();
     }
 
     std::string addressToString(sockaddr_in& address)

@@ -9,7 +9,7 @@
 
 namespace simpleApp
 {
-    Session::Session(int epollfd) : epollfd(epollfd)
+    Session::Session()
     {
         
     }
@@ -23,7 +23,6 @@ namespace simpleApp
     {
         if (this->_socket != -1)
         {
-            epoll_ctl(this->epollfd, EPOLL_CTL_DEL, this->_socket, 0);
             shutdown(this->_socket, SHUT_RDWR);
             close(this->_socket);
             this->_socket = -1;

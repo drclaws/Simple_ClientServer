@@ -16,7 +16,7 @@ namespace simpleApp
         session_result init(socket_t masterSocket) override;
         
         session_result proceed() override;
-        
+
     private:
         int timerfd = -1;
         bool timerReset();
