@@ -58,7 +58,7 @@ namespace simpleApp
         if (len != sizeof(msg_headers))
             return session_result(session_status::init_udp_wrong_length);
         
-        if (*(reinterpret_cast<msg_headers *>(msgBuff)) != msg_headers::client_connup)
+        if (*(reinterpret_cast<msg_headers *>(msgBuff)) != msg_headers::req_connstart)
             return session_result(session_status::init_udp_wrong_header);
 
         auto initSocket = [this, &address]()
@@ -81,7 +81,7 @@ namespace simpleApp
             timerEvent.data.fd = this->timerfd;
             timerEvent.data.ptr = this;
 
-            if (epoll_ctl(this->epollfd, EPOLL_CTL_DEL, this->timerfd, &timerEvent) == -1)
+            if (epoll_ctl(this->epollfd, EPOLL_CTL_ADD, this->timerfd, &timerEvent) == -1)
             {
                 auto result = session_result(session_status::init_udp_timer_fail, errno);
                 close(this->timerfd);
@@ -111,14 +111,6 @@ namespace simpleApp
                 this->_socket = -1;
                 return result;
             }
-            
-            if (connect(this->_socket, (sockaddr *)&address, sizeof(sockaddr_in)) == -1)
-            {
-                auto result = session_result(session_status::init_socket_setup_fail, errno);
-                close(this->_socket);
-                this->_socket = -1;
-                return result;
-            }
 
             sockaddr_in socketBindAddress;
             bzero(&socketBindAddress, sizeof(socketBindAddress));
@@ -130,6 +122,14 @@ namespace simpleApp
             {
                 auto result = session_result(session_status::init_socket_setup_fail, errno);
                 shutdown(this->_socket, SHUT_RDWR);
+                close(this->_socket);
+                this->_socket = -1;
+                return result;
+            }
+            
+            if (connect(this->_socket, (sockaddr *)&address, sizeof(sockaddr_in)) == -1)
+            {
+                auto result = session_result(session_status::init_socket_setup_fail, errno);
                 close(this->_socket);
                 this->_socket = -1;
                 return result;

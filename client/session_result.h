@@ -34,6 +34,7 @@ namespace simpleApp
         connup_timeout,
         connup_not_req,
 
+        server_error,
         unknown_status
     };
 

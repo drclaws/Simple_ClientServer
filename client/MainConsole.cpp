@@ -65,9 +65,35 @@ namespace simpleApp
         SessionClient * currentSession = nullptr;
         console_state currentState;
 
-        auto switchState = [&currentState, &currentSession, &isExit](console_state newState)
+        auto switchState = [&currentState, &currentSession](console_state newState)
         {
             // TODO
+
+            // TODO STDIN clean up
+
+            switch (newState)
+            {
+            case console_state::protocol_selection:
+                if (currentSession != nullptr)
+                {
+                    delete currentSession;
+                    currentSession = nullptr;
+                }
+                std::cout << "Select protocol: [u]dp or [t]cp" << std::endl << 
+                    " >> " << std::flush;
+                break;
+
+            case console_state::address_input:
+                std::cout << "Input server IP-address" << std::endl <<
+                    " >> " << std::flush;
+                break;
+            case console_state::connected:
+                std::cout << "Connected. Input message" << std::endl <<
+                    " >> " << std::flush;
+                break;
+            }
+
+            currentState = newState;
         };
 
         switchState(console_state::protocol_selection);
@@ -97,7 +123,7 @@ namespace simpleApp
                 return -1;
             }
 
-            if (currentSession != nullptr)
+            if (currentState == console_state::connected)
             {
                 if (selectResult == 0)
                 {
@@ -174,26 +200,26 @@ namespace simpleApp
 
             if (FD_ISSET(STDIN_FILENO, &fd_in))
             {
-                char buffer[MESSAGE_MAX_BUFFER - sizeof(msg_headers)];
+                std::string line;
+                std::getline(std::cin, line);
 
-                int len = 0;
-                // TODO read from stdin
-                // len = read(stdin, buffer);
-                    
+                int len = line.size();
+                const char* linePtr = line.c_str();
+
                 if (len == 0)
                 {
                     std::cout << " >> " << std::flush;
                 }
                 else if (currentState == console_state::protocol_selection)
                 {
-                    if (len != 1 || (buffer[0] != 'u' && buffer[0] != 't'))
+                    if (len != 1 || (linePtr[0] != 'u' && linePtr[0] != 't'))
                     {
                         std::cout << "Invalid input. [u]dp or [t]cp?" << std::endl << 
                             " >> " << std::flush;
                     }
                     else
                     {
-                        if (buffer[0] == 'u')
+                        if (linePtr[0] == 't')
                             currentSession = new SessionTcp();
                         else
                             currentSession = new SessionUdp();
@@ -203,7 +229,7 @@ namespace simpleApp
                 }
                 else if (currentState == console_state::address_input)
                 {
-                    auto address = inet_addr(buffer);
+                    auto address = inet_addr(linePtr);
 
                     if (address == INADDR_NONE)
                     {
@@ -235,6 +261,9 @@ namespace simpleApp
                             case session_status::recv_wrong_header:
                                 std::cout << "Received message corrupted";
                                 break;
+                            case session_status::server_error:
+                                std::cout << "Error on server-side";
+                                break;
                             default:
                                 std::cout << "Unknown error";
                                 break;
@@ -251,7 +280,7 @@ namespace simpleApp
                 }
                 else if (currentState == console_state::connected)
                 {
-                    auto result = currentSession->proceed(buffer, len);
+                    auto result = currentSession->proceed(linePtr, len);
                     if (result.status == session_status::proceed_msg)
                     {
                         std::cout << "Received answer: '" << result.recvMsg << "'" << std::endl <<
@@ -283,9 +312,18 @@ namespace simpleApp
                         
                         switchState(console_state::protocol_selection);
                     }
-                }                
+                }  
+
+                // TODO clear cin           
             }
         }
+
+        if (currentSession != nullptr)
+        {
+            delete currentSession;
+        }
+        
+        // TODO clear cin
 
         return 0;
     }

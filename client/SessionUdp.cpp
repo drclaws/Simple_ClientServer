@@ -53,7 +53,13 @@ namespace simpleApp
         }
         
         msg_headers header = *reinterpret_cast<msg_headers*>(buffer);
-
+        
+        if (header == msg_headers::err_connstart)
+        {
+            this->sessionClose();
+            return session_result(session_status::server_error);
+        }
+        
         if (header != msg_headers::accept_connstart)
         {
             this->sessionClose();

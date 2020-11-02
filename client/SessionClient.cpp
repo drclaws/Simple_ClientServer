@@ -53,7 +53,7 @@ namespace simpleApp
         return session_result(session_status::init_success);
     }
 
-    session_result SessionClient::proceed(char* sendMsg, size_t msgSize)
+    session_result SessionClient::proceed(const char* sendMsg, size_t msgSize)
     {
         if(sendMsg == nullptr || msgSize == 0)
         {
@@ -89,7 +89,7 @@ namespace simpleApp
         }
         else if (sendMsg != nullptr && msgSize != 0)
         {
-            if (this->sendMessage(msg_headers::client_msg, sendMsg, msgSize) == -1)
+            if (this->sendMessage(msg_headers::client_msg, (char *)sendMsg, msgSize) == -1)
             {
                 return session_result(session_status::proceed_msg_send_fail, errno);
             }

@@ -17,7 +17,7 @@ namespace simpleApp
         virtual ~SessionClient();
 
         virtual session_result init(in_addr_t address) = 0;
-        session_result proceed(char* sendMsg = nullptr, size_t msgSize = 0);
+        session_result proceed(const char* sendMsg = nullptr, size_t msgSize = 0);
         virtual session_result sendConnup();
         socket_t getSocket();
         

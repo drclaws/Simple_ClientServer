@@ -55,5 +55,9 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    return server.serverLoop();
+    auto result = server.serverLoop();
+
+    tcsetattr(fileno(stdin), TCSANOW, &orig_term_attr);
+    
+    return result;
 }
