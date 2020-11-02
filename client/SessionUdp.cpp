@@ -42,7 +42,7 @@ namespace simpleApp
 
         if (len == -1)
         {
-            auto result = session_result(session_status::init_connection_fail, errno);
+            auto result = session_result(session_status::init_udp_recv_up_fail, errno);
             this->sessionClose();
             return result;
         }

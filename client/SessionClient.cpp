@@ -89,8 +89,32 @@ namespace simpleApp
         }
         else if (sendMsg != nullptr && msgSize != 0)
         {
-            // TODO
-            return session_status();
+            if (this->sendMessage(msg_headers::client_msg, sendMsg, msgSize) == -1)
+            {
+                return session_result(session_status::proceed_msg_send_fail, errno);
+            }
+
+            uint8_t buffer[MESSAGE_MAX_BUFFER];
+            auto len = recv(this->_socket, buffer, MESSAGE_MAX_BUFFER, MSG_NOSIGNAL);
+
+            if (len == -1)
+            {
+                return session_result(session_status::proceed_msg_recv_fail);
+            }
+            else if (static_cast<size_t>(len) <= sizeof(msg_headers))
+            {
+                return session_result(session_status::recv_wrong_length);
+            }
+            
+            msg_headers header = *reinterpret_cast<msg_headers*>(buffer);
+
+            if (header != msg_headers::server_msg)
+            {
+                return session_result(session_status::recv_wrong_header);
+            }
+
+            return session_result(
+                std::string((char *)(buffer + sizeof(msg_headers)), len - sizeof(msg_headers)));
         }
         else
         {
