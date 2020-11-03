@@ -321,7 +321,7 @@ namespace simpleApp
                             
                             std::string msg = "Stop event happened";
 
-                            if (eventfd_read(this->stopEventFd, static_cast<eventfd_t *>(&decrement)) == -1)
+                            if (eventfd_read(this->stopEventFd, &decrement) == -1)
                             {
                                 msg += std::string("\nStop event decrementation failed with code ") +
                                     std::to_string(errno) + ". Server will stop anyway";

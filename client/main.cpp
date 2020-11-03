@@ -21,7 +21,7 @@ void onBreak(int s)
 
 int main(int argc, char** argv)
 {
-    std::cout << "Welcome to the Simple Client! For exit press Ctrl+C" << std::endl;
+    std::cout << "Welcome to the Simple Client! Press Ctrl+C to exit or set new connection" << std::endl;
 
     if (simpleApp::set_nonblock(STDIN_FILENO) == -1)
     {

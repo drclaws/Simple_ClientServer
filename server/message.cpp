@@ -12,9 +12,9 @@ namespace simpleApp
     {
         auto msgReceived = std::string(in, len);
         bool isFound = false;
-        unsigned long value = 0;
+        int value = 0;
 
-        const std::regex r("[0123456789]+");
+        const std::regex r("(\\-|\\+)?[0123456789]+");
 
         for (std::sregex_iterator it = std::sregex_iterator(msgReceived.begin(), msgReceived.end(), r); 
                 it != std::sregex_iterator(); it++)

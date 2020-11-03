@@ -8,6 +8,7 @@
 
 #include <errno.h>
 #include <unistd.h>
+#include <limits>
 
 #include "SessionClient.hpp"
 #include "SessionTcp.hpp"
@@ -70,22 +71,18 @@ namespace simpleApp
                     delete currentSession;
                     currentSession = nullptr;
                 }
-                std::cout << "Select protocol: [u]dp or [t]cp" << std::endl << 
-                    " >> " << std::flush;
+                std::cout << std::endl << "Select protocol: [u]dp or [t]cp" << std::endl;
                 break;
 
             case console_state::address_input:
-                std::cout << "Input server IP-address" << std::endl <<
-                    " >> " << std::flush;
+                std::cout << std::endl << "Input server IP-address" << std::endl;
                 break;
             case console_state::connected:
-                std::cout << "Connected. Input message" << std::endl <<
-                    " >> " << std::flush;
+                std::cout << std::endl << "Connected. Input message" << std::endl;
                 break;
             }
 
-            // TODO clean stdin
-
+            std::cout << " >> " << std::flush;
             currentState = newState;
         };
 
@@ -113,8 +110,7 @@ namespace simpleApp
 
             int selectResult = select(largerFd + 1, &fd_in, 0, 0, &tv);
 
-            // TODO link with break event
-            if (selectResult == -1)
+            if (selectResult == -1 && errno != EINTR)
             {
                 std::cout << std::endl << "Select failed with code " << errno << std::endl;
                 if (currentSession != nullptr)
@@ -145,7 +141,6 @@ namespace simpleApp
                     }
                 }
                 
-                // Something came to socket without request
                 if (FD_ISSET(currentSession->getSocket(), &fd_in))
                 {
                     auto result = currentSession->proceed();
@@ -189,12 +184,17 @@ namespace simpleApp
 
             if (FD_ISSET(this->breakEventFd, &fd_in))
             {
+                eventfd_t decrement = 1;
+                eventfd_read(this->breakEventFd, &decrement);
+
+                std::cout << std::endl;
+
                 if (currentState == console_state::protocol_selection)
                     isExit = true;
                 else
+                {
                     switchState(console_state::protocol_selection);
-                
-                std::cout << std::endl;
+                }
                 
                 continue;
             }
