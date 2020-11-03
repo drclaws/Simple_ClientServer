@@ -55,11 +55,6 @@ namespace simpleApp
             std::cout << "Break event is not set" << std::endl;
             return -1;
         }
-        
-        timeval tv;
-        
-        tv.tv_sec = 5;
-        tv.tv_usec = 0;
 
         bool isExit = false;
         SessionClient * currentSession = nullptr;
@@ -67,10 +62,6 @@ namespace simpleApp
 
         auto switchState = [&currentState, &currentSession](console_state newState)
         {
-            // TODO
-
-            // TODO STDIN clean up
-
             switch (newState)
             {
             case console_state::protocol_selection:
@@ -93,6 +84,8 @@ namespace simpleApp
                 break;
             }
 
+            // TODO clean stdin
+
             currentState = newState;
         };
 
@@ -112,12 +105,18 @@ namespace simpleApp
                 auto sessionSocket = currentSession->getSocket();
                 largerFd = sessionSocket > largerFd ? sessionSocket : largerFd;
             }
-                
+            
+            timeval tv;
+            
+            tv.tv_sec = 5;
+            tv.tv_usec = 0;
+
             int selectResult = select(largerFd + 1, &fd_in, 0, 0, &tv);
 
+            // TODO link with break event
             if (selectResult == -1)
             {
-                std::cout << "Select failed with code " << errno;
+                std::cout << std::endl << "Select failed with code " << errno << std::endl;
                 if (currentSession != nullptr)
                     delete currentSession;
                 return -1;
@@ -140,7 +139,7 @@ namespace simpleApp
                         else
                             std::cout << std::endl << std::flush;
 
-                        switchState(console_state::address_input);
+                        switchState(console_state::protocol_selection);
 
                         continue;
                     }
@@ -194,6 +193,8 @@ namespace simpleApp
                     isExit = true;
                 else
                     switchState(console_state::protocol_selection);
+                
+                std::cout << std::endl;
                 
                 continue;
             }
@@ -312,9 +313,7 @@ namespace simpleApp
                         
                         switchState(console_state::protocol_selection);
                     }
-                }  
-
-                // TODO clear cin           
+                }         
             }
         }
 
@@ -322,8 +321,6 @@ namespace simpleApp
         {
             delete currentSession;
         }
-        
-        // TODO clear cin
 
         return 0;
     }

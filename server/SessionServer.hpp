@@ -24,8 +24,8 @@ namespace simpleApp
         std::string getName();
         
     protected:
-        std::string _name;
         int epollfd;
+        std::string _name;
 
         SessionServer(int epollfd, std::string name = "");
 

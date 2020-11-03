@@ -7,7 +7,7 @@
 
 namespace simpleApp
 {
-    SessionServer::SessionServer(int epollfd, std::string name) : epollfd(epollfd), _name(name), Session() 
+    SessionServer::SessionServer(int epollfd, std::string name) : Session(), epollfd(epollfd), _name(name)
     {
         
     }
