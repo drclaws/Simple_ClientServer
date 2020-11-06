@@ -57,5 +57,6 @@
         "map": "cpp",
         "regex": "cpp",
         "shared_mutex": "cpp"
-    }
+    },
+    "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools"
 }

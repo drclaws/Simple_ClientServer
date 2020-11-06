@@ -60,8 +60,10 @@ namespace simpleApp
         bool isExit = false;
         SessionClient * currentSession = nullptr;
         console_state currentState;
+        
+        socket_t sessionSocket = -1;
 
-        auto switchState = [&currentState, &currentSession](console_state newState)
+        auto switchState = [&currentState, &currentSession, &sessionSocket](console_state newState)
         {
             switch (newState)
             {
@@ -69,6 +71,7 @@ namespace simpleApp
                 if (currentSession != nullptr)
                 {
                     delete currentSession;
+                    sessionSocket = -1;
                     currentSession = nullptr;
                 }
                 std::cout << std::endl << "Select protocol: [u]dp or [t]cp" << std::endl;
@@ -78,6 +81,7 @@ namespace simpleApp
                 std::cout << std::endl << "Input server IP-address" << std::endl;
                 break;
             case console_state::connected:
+                sessionSocket = currentSession->getSocket();
                 std::cout << std::endl << "Connected. Input message" << std::endl;
                 break;
             }
@@ -93,13 +97,13 @@ namespace simpleApp
             fd_set fd_in;
             FD_ZERO(&fd_in);
 
-            FD_SET(this->breakEventFd, &fd_in);
             FD_SET(STDIN_FILENO, &fd_in);
+            FD_SET(this->breakEventFd, &fd_in);
 
             int largerFd = this->breakEventFd > STDIN_FILENO ? this->breakEventFd : STDIN_FILENO;
-            if (currentSession != nullptr)
+            if (sessionSocket != -1)
             {
-                auto sessionSocket = currentSession->getSocket();
+                FD_SET(sessionSocket, &fd_in);
                 largerFd = sessionSocket > largerFd ? sessionSocket : largerFd;
             }
             
@@ -118,6 +122,23 @@ namespace simpleApp
                 return -1;
             }
 
+            if (FD_ISSET(this->breakEventFd, &fd_in))
+            {
+                eventfd_t decrement = 1;
+                eventfd_read(this->breakEventFd, &decrement);
+
+                std::cout << std::endl;
+
+                if (currentState == console_state::protocol_selection)
+                    isExit = true;
+                else
+                {
+                    switchState(console_state::protocol_selection);
+                }
+                
+                continue;
+            }
+            
             if (currentState == console_state::connected)
             {
                 if (selectResult == 0)
@@ -127,8 +148,12 @@ namespace simpleApp
                     {
                         if (result.status == session_status::connup_timeout)
                             std::cout << std::endl << "Server does not response";
+                        else if (result.status == session_status::connup_timeout)
+                            std::cout << std::endl << "Server closed session due to timeout";
+                        else if (result.status == session_status::server_error)
+                            std::cout << std::endl << "Server returned internal error";
                         else
-                            std::cout << std::endl << "Unknown error";
+                            std::cout << std::endl << "Error. Unknown status returned";
                         
                         if (result.err != 0)
                             std::cout << " with code " << result.err << std::endl << std::flush;
@@ -141,29 +166,29 @@ namespace simpleApp
                     }
                 }
                 
-                if (FD_ISSET(currentSession->getSocket(), &fd_in))
+                if (FD_ISSET(sessionSocket, &fd_in))
                 {
                     auto result = currentSession->proceed();
                     
                     switch (result.status)
                     {
                     case session_status::proceed_msg_recv_fail:
-                        std::cout << "Message receiving failed";
+                        std::cout << std::endl << "Message receiving failed";
                         break;
                     case session_status::proceed_disconnect:
-                        std::cout << "Session shutdown by server";
+                        std::cout << std::endl << "Session closed by server";
                         break;
                     case session_status::recv_wrong_length:
-                        std::cout << "Message with wrong length received";
+                        std::cout << std::endl << "Message with wrong length received";
                         break;
                     case session_status::proceed_server_error:
-                        std::cout << "Server error returned";
+                        std::cout << std::endl << "Server error returned";
                         break;
                     case session_status::proceed_server_timeout:
-                        std::cout << "Received server timeout";
+                        std::cout << std::endl << "Received server timeout";
                         break;
                     default:
-                        std::cout << "Unknown error";
+                        std::cout << std::endl << "Unknown error";
                         break;
                     }
                      
@@ -179,23 +204,6 @@ namespace simpleApp
             }
             else if (selectResult == 0)
             {
-                continue;
-            }
-
-            if (FD_ISSET(this->breakEventFd, &fd_in))
-            {
-                eventfd_t decrement = 1;
-                eventfd_read(this->breakEventFd, &decrement);
-
-                std::cout << std::endl;
-
-                if (currentState == console_state::protocol_selection)
-                    isExit = true;
-                else
-                {
-                    switchState(console_state::protocol_selection);
-                }
-                
                 continue;
             }
 
@@ -260,7 +268,7 @@ namespace simpleApp
                                 break;
                             case session_status::recv_wrong_length:
                             case session_status::recv_wrong_header:
-                                std::cout << "Received message corrupted";
+                                std::cout << "Received message corrupted. Possible that client didn't receive session close message";
                                 break;
                             case session_status::server_error:
                                 std::cout << "Error on server-side";

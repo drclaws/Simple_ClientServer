@@ -48,6 +48,12 @@ namespace simpleApp
 
         auto len = recvfrom(masterSocket, msgBuff, buffCheckLength, 0, (sockaddr *)&address, &addressLen);
 
+        auto sendInitError = [masterSocket, &address]()
+        {
+            const msg_headers buff = msg_headers::err_connstart;
+            sendto(masterSocket, &buff, sizeof(buff), 0, (sockaddr *)&address, sizeof(address));
+        };
+
         if (len == -1)
         {
             return session_result(session_status::init_listener_fail, errno);
@@ -56,10 +62,16 @@ namespace simpleApp
         this->_name += std::string(" (") + addressToString(address) + std::string(")");
 
         if (len != sizeof(msg_headers))
+        {
+            sendInitError();
             return session_result(session_status::init_udp_wrong_length);
-        
+        }
+
         if (*(reinterpret_cast<msg_headers *>(msgBuff)) != msg_headers::req_connstart)
+        {
+            sendInitError();
             return session_result(session_status::init_udp_wrong_header);
+        }
 
         auto initSocket = [this, &address]()
         {
@@ -160,8 +172,7 @@ namespace simpleApp
         }
         else
         {
-            const uint8_t header = static_cast<const uint8_t>(msg_headers::err_connstart);
-            sendto(masterSocket, &header, sizeof(header), 0, (sockaddr *)&address, sizeof(sockaddr_in));
+            sendInitError();
         }
 
         return result;
